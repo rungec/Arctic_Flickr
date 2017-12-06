@@ -72,6 +72,8 @@ timedf <- transform(dat, month = format(datetaken,"%m"), year = format(datetaken
 counts <- ddply(timedf,.(yearmon, month,year),nrow)
 countsub <- subset(counts, year <2018 & year > 1996)	
 a<-ts(countsub$V1,start=c(1997,1),freq=12)
+#print(a)
+write.csv(matrix(c(a, 0, 0), ncol=12, byrow=TRUE, dimnames=list(c(1997:2017), format(seq.Date(as.Date('2000-01-01'), by = 'month', len = 12), "%b"))), "Flickr_60N_numberofpoints_byyearmon.csv", row.names=TRUE)
 
 png(paste0(wd, "/Timeseries_flickr_allarticphotos.png"),width=1000, height=400) 
 	plot(a, type="l", lwd=2, col="red", ylab= "Number of photos",xlim=c(2004,2017),axes=F)
@@ -80,6 +82,15 @@ dev.off()
 
 #86 photos have dates after 2017
 #7303 photos from before 2000
+
+############################
+#Summarise by country
+############################
+
+
+
+
+
 
 
 ############################
@@ -139,15 +150,4 @@ graphics.off()
 
 #run across months		 
 saveHTML(FUN2(timeList=c(1:12), timevar="month"), img.name="Flickr_60N_byMonth", imgdir="animation_images", htmlfile="Flickr_60N_byMonth.html", autoplay = FALSE, loop = FALSE, verbose = FALSE, single.opts = "'controls': ['first', 'previous', 'play', 'next', 'last', 'loop', 'speed'], 'delayMin': 0")
-
-############################
-#Leaflet
-############################
-
-
-
-
-
-
-
 
