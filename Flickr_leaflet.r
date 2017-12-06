@@ -8,11 +8,12 @@ library(readr)
 library(rgdal)
 library(sf)
 library(purrr)
+library(zoo) #for as.yearmon
 #library(plyr)
 #library(maps)
 library(leaflet)
 #library(tidyverse)
-library(htmlwidgets)
+library(htmlwidgets) #saveWidget
 
 options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
@@ -27,15 +28,20 @@ dat <- dat[dat$latitude >= 60, ]
 # WGS84 = EPSG: 4326
 #North pole azimithul lambert equal area ESRI:102017 +proj=laea +lat_0=90 +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs 
 
-#test dataset
-subdat <- dat[1:10000,]
-all.sf <- st_as_sf(subdat, coords=c('longitude', 'latitude'))
-st_crs(all.sf) <- 4326 #WGS84
-
 
 #full dataset
 #all.sf <- st_as_sf(dat, coords=c('longitude', 'latitude'))
 #st_crs(all.sf) <- 4326 #WGS84
+#but leaflet gets really slow after about 50k points, so we will cut it down
+
+#subset dataset
+#subdat <- dat[1:10000,]
+dat$year <- format(dat$datetaken, "%Y")
+dat$month <- format(dat$datetaken, "%m")
+subdat <- dat[dat$year==2010 & dat$month=="07", ]
+all.sf <- st_as_sf(subdat, coords=c('longitude', 'latitude'))
+st_crs(all.sf) <- 4326 #WGS84
+
 
 ############################
 #set up polar projection
@@ -102,22 +108,24 @@ polarmaps <- purrr::map2(crses, tileURLtemplates,
 content <- paste0("<b><a href=",
                   all.sf$url_m,
                   ">",
-                  all.sf$title,
+                  as.character(all.sf$id), "<br/>", 
+                 # as.yearmon(all.sf$datetaken, "%y%m"),
+                 as.character(all.sf$owner),
                   "</a></b>"
 )
 
 
 m <- polarmaps[[4]] %>%
-  addGraticule(interval = 20) %>%
-  addCircleMarkers(data=all.sf,  color = "red", popup = content,
-                   stroke = FALSE, fillOpacity = 0.5)
+  addGraticule(interval = 20, style=list(color="grey30", weight=0.15)) %>%
+  addCircleMarkers(data=all.sf,  color = "#f97f63", fillColor = "#fceccf", popup = content,
+                   stroke = TRUE, fillOpacity = 0.5)
   
 
 #Display the map
-m
+#m
 
 #### Export the html widget ####
-saveWidget(m, file="flickr_map.html",selfcontained = FALSE)
+saveWidget(m, file="Flickr_60N_allphotos_map_July2010.html",selfcontained = FALSE)
 
 
 
