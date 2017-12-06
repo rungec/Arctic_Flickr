@@ -105,7 +105,7 @@ plotfun <- function(x, timevar){
 	}	
 	#plot #fceccf
 	currYrSub.sf %>% ggplot() + 
-	geom_sf(data=worldmap, fill="NA", color="grey80", size=0.15) +
+	geom_sf(data=worldmap, fill="NA", color="grey30", size=0.15) +
 	geom_sf(size=2, alpha=0.7, colour="#fce2ba") +
 	coord_sf(crs = st_crs(102017)) + #plot in north pole lambert
 	labs(title = currtime, subtitle = "Each point is a Flickr photo" ) +
