@@ -99,48 +99,42 @@ spatialjoin <- cbind(spatialjoin, apply(spatialjoin, 1, function(x) all(x==FALSE
 dimnames(spatialjoin) <- list(NULL, c(worldmap$ADMIN[1:10], "Alaska", "Marine"))
 all.sf <- cbind(all.sf, spatialjoin)
 
+#set up dummy df listing times
+s <- seq(as.yearmon(as.character(199701), "%Y%m"), as.yearmon(as.character(201711), "%Y%m"), 1/12) # create yearmon sequence
+yearmonDF <- data.frame(yearmon=as.numeric(format(s, "%Y%m")), year=as.numeric(format(s, "%Y")), month=as.numeric(format(s, "%m")), datelabels=s) 
+
 #Summarise
 timeList <- lapply(c(worldmap$ADMIN[1:10], "Alaska", "Marine"), function(region) {
     sub.sf <- all.sf[match.fun('==')(all.sf[[region]], TRUE), ] #select points in region
-    #if(nrow(sub.sf)>0) {
-      counts <- ddply(sub.sf, .(yearmon, month, year), nrow)
-      countsub <- subset(counts, year <2018 & year > 1996)
-    #} else {
-    #countsub <- 0
-    #}
+    if(nrow(sub.sf)>0) {
+      counts <- ddply(sub.sf, .(yearmon), nrow)
+      countsub <- subset(counts, yearmon < 201801 & yearmon > 199612)
+    } else {
+    countsub <- data.frame(yearmon=yearmonDF$yearmon, 0)
+    }
     return(countsub)
 })
 
-
-
-all.sf$month <- format(all.sf$datetaken,"%m")
-all.sf$year <- format(all.sf$datetaken,"%Y")
-all.sf$yearmon <- format(all.sf$datetaken,"%Y%m")
-
-
-
-timeDF <- do.call(merge, timeList)
-?or merge
-func <- function(x,y){merge(x, y, by.x=names(x)[1], by.y=names(y)[1])}
-lapply(list.df, func, df)
-
-cbind.fill <- function(...){
-  nm <- list(...) 
-  nm <- lapply(nm, as.matrix)
-  n <- max(sapply(nm, nrow)) 
-  do.call(cbind, lapply(nm, function (x) 
-    rbind(x, matrix(, n-nrow(x), ncol(x))))) 
-}
-
-s <- seq(as.yearmon(as.character(199701), "%Y%m"), as.yearmon(as.character(201711), "%Y%m"), 1/12) # create yearmon sequence
-as.numeric(format(s, "%Y%m")) # convert to numeric yyyymm
-
-#fill in missing dates
-
+#merge the lists
+mergeFun <- function(x,y){
+              m1 <-merge(y, x, by.x=names(x)[1], by.y=names(y)[1], all.x=TRUE)[, 5] #return only counts
+              return(m1)
+              }
+timeDF <- lapply(timeList, mergeFun, yearmonDF) #fill in missing dates
+timeDF <- data.frame(yearmonDF, do.call(cbind, timeDF)) #each list item becomes a column
+timeDF[is.na(timeDF)] <- 0 #replace NAs with 0s
+names(timeDF) <- c(names(yearmonDF), worldmap$ADMIN[1:10], "Alaska", "Marine")
 
 #save
-write.csv(matrix(c(a, 0), ncol=12, byrow=TRUE, dimnames=list(c(1997:2017), format(seq.Date(as.Date('2000-01-01'), by = 'month', len = 12), "%b"))), "Flickr_60N_numberofpoints_byyearmon.csv", row.names=TRUE)
+write.csv(timeDF, "Flickr_60N_numberofpoints_byyearmon_andregion.csv", row.names=FALSE)
 
+#summarise each region by year
+counts3 <- aggregate(timeDF[,c(2, 5:16)], by=list(1997:2017), sum)
+counts3 <- ddply(timeDF[,c(2,5)], .(year), sum)
+
+#summarise each region by month
+
+#plot temporal trends by region
 png(paste0(wd, "/xxxx.png"),width=1000, height=400) 
 library(ggplot2)
 library(reshape2)
@@ -151,7 +145,11 @@ ggplot(df_melt, aes(x = date, y = value)) +
   facet_wrap(~ variable, scales = 'free_y', ncol = 1)
 dev.off()
 
+############################
+#Density plots
+############################
 
+http://ryanruthart.com/using-r-to-perform-a-spatial-join-and-aggregate-data/
 
 
 ############################
