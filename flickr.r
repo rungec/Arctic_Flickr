@@ -88,8 +88,8 @@ s <- seq(as.yearmon(as.character(199701), "%Y%m"), as.yearmon(as.character(20171
 yearmonDF <- data.frame(yearmon=as.numeric(format(s, "%Y%m")), year=as.numeric(format(s, "%Y")), month=as.numeric(format(s, "%m")), datelabels=s) 
 
 #Summarise
-timeList <- lapply(c(worldmap$ADMIN[1:10], "Alaska", "Marine"), function(region) {
-    sub.sf <- all.sf[match.fun('==')(all.sf[[region]], TRUE), ] #select points in region
+timeList <- lapply(names(all.sf)[28:39], function(region) {
+	sub.sf <- all.sf[match.fun('==')(all.sf[[region]], TRUE), ] #select points in region
     if(nrow(sub.sf)>0) {
       counts <- plyr::ddply(sub.sf, .(yearmon), nrow)
       countsub <- subset(counts, yearmon < 201801 & yearmon > 199612)
@@ -107,7 +107,7 @@ mergeFun <- function(x,y){
 timeDF <- lapply(timeList, mergeFun, yearmonDF) #fill in missing dates
 timeDF <- data.frame(yearmonDF, do.call(cbind, timeDF)) #each list item becomes a column
 timeDF[is.na(timeDF)] <- 0 #replace NAs with 0s
-names(timeDF) <- c(names(yearmonDF), worldmap$ADMIN[1:10], "Alaska", "Marine")
+names(timeDF) <- c(names(yearmonDF), names(all.sf)[28:39]) # add region names
 timeDF$All_regions <- apply(timeDF[,5:16], 1, sum) #add column summing number of photos for whole region
 
 #save
@@ -194,12 +194,10 @@ ggsave("Flickr_60N_numberofphotos_allregions.png", p, height=4, width=7)
 ############################
 tagcount <- dat %>% group_by(tags) %>% summarise(no_rows = length(tags))
 nrow(tagcount) #496767 different tags
-
-
 write.csv(tagcount, "Flickr_60N_tags_summary.csv", row.names=TRUE)
 
-
-
+tagcount[tagcount$no_rows==469599,] #469599 photos with no tags
+sum(tagcount$no_rows)-469599 #1312484 photos with tags
 
 ############################
 #Density plots
