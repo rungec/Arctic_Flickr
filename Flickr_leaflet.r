@@ -4,15 +4,12 @@
 
 setwd("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis")
 
-library(readr)
 library(rgdal)
 library(sf)
-library(purrr)
 library(zoo) #for as.yearmon
-#library(plyr)
 #library(maps)
 library(leaflet)
-#library(tidyverse)
+library(tidyverse) #includes purrr & readr
 library(htmlwidgets) #saveWidget
 
 options(stringsAsFactors = FALSE)
