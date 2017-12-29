@@ -38,11 +38,13 @@ dat$month <- format(dat$datetaken,"%m")
 dat$year <- format(dat$datetaken,"%Y")
 dat$yearmon <- format(dat$datetaken,"%Y%m")
 
+#add latitude column
+dat$photo_lat <- dat$latitude
 
 #load country borders shapefile
 worldmap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBorders_60degreesN_lambert.shp")
 
-
+test <- dat[dat$latitude <= 60, ]
 ############################
 #convert to spatial points
 ############################
@@ -75,13 +77,42 @@ all.sf <- st_transform(all.sf, crs=102017)
 #	ggsave(paste0("Flickr_60N_allpoints.png"))
 
 ############################
-#Timeseries by region
+#Identify region
 ############################
 #Which points fall within which country
 spatialjoin <- st_intersects(all.sf, worldmap, sparse = FALSE)
 spatialjoin <- cbind(spatialjoin, apply(spatialjoin, 1, function(x) all(x==FALSE))) #add "Marine" column TRUE where points dont overlap any polygon in worldmap
 dimnames(spatialjoin) <- list(NULL, c(worldmap$ADMIN[1:10], "Alaska", "Marine"))
 all.sf <- cbind(all.sf, spatialjoin)
+
+#add a column called 'region'
+all.df <- st_set_geometry(all.sf, NULL) #equivalent of sp@data
+all.sf$region <- apply(all.df[, 29:40],1, function(x) names(all.df[29:40][which(x)]))
+all.sf$region <- as.factor(all.sf$region)
+
+
+#check latitude for all regions
+p <- ggplot(all.sf, aes(photo_lat)) + 
+  geom_histogram() + 
+  facet_grid(region ~ . , scales = 'free_y') +
+  #geom_hline(yintercept=0, size=0.4, color="black") +
+  labs(title="Flickr by latitude",
+       subtitle="By region",
+       x="Latitude",
+       y="Number of photos") +
+    theme_minimal(base_size=10)
+ggsave("Flickr_60N_histogram_latitide_byregion_facet.png", p, height = 9, width = 4)
+
+
+#save all.sf
+#all.sf$region <- as.character(all.sf$region)
+#st_write(all.sf, dsn="D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea.shp")
+
+
+  
+############################
+#Timeseries by region
+############################
 
 #set up dummy df listing times
 s <- seq(as.yearmon(as.character(199701), "%Y%m"), as.yearmon(as.character(201711), "%Y%m"), 1/12) # create yearmon sequence
@@ -154,6 +185,53 @@ p <- ggplot(timeDFlong, aes(x = as.Date(datelabels), y = numphotos)) +
    theme_minimal(base_size=10)
    
 ggsave("Flickr_60N_numberofphotos_byregion_facet.png", p, height = 9, width = 4)
+
+
+#plot seasonal trends by region #facetwrap
+timeDFlong$season[timeDFlong$month %in% c(12, 1, 2)] <- "Winter"
+timeDFlong$season[timeDFlong$month %in% c(3,4,5)] <- "Spring"
+timeDFlong$season[timeDFlong$month %in% c(6,7,8)] <- "Summer"
+timeDFlong$season[timeDFlong$month %in% c(9,10,11)] <- "Autumn"
+timeDFlong$season <- factor(timeDFlong$season, levels=c("Spring", "Summer", "Autumn", "Winter"))
+
+p <- ggplot(timeDFlong, aes(x = season, y = numphotos)) + 
+  geom_col(colour=wes_palette(1, name="Zissou", type="discrete"), fill=wes_palette(1, name="Zissou", type="discrete")) + 
+  facet_wrap(~region, ncol=3, scales = 'free_y') +
+  geom_hline(yintercept=0, size=0.4, color="black") +
+  labs(title="Flickr use by season",
+       subtitle="By region",
+       x="Season",
+       y="Number of photos") +
+   theme_minimal(base_size=10)
+
+ggsave("Flickr_60N_numberofphotos_byregion_andseason_facet.png", p, height =7, width =8)
+
+#plot barplot by month and region
+p <- ggplot(timeDFlong, aes(x = month, y = numphotos)) + 
+  geom_col(colour=wes_palette(1, name="Zissou", type="discrete"), fill=wes_palette(1, name="Zissou", type="discrete")) + 
+  facet_wrap(~region, ncol=3, scales = 'free_y') +
+  geom_hline(yintercept=0, size=0.4, color="black") +
+  labs(title="Flickr use by month",
+       subtitle="By region",
+       x="Month",
+       y="Number of photos") +
+  scale_x_continuous(breaks=c(2,5,8,11), labels=month.abb[c(2,5,8,11)]) +
+  theme_minimal(base_size=10)+
+  theme(axis.text.x = element_text(size=10, angle=45, hjust=1))
+ggsave("Flickr_60N_numberofphotos_byregion_andmonth_facet.png", p, height =7, width =8)
+
+#plot heatmap of photos by year, month and region
+tmp1 <- group_by(timeDFlong,region) # grouping the data by type
+tmp2 <- mutate(tmp1, numphotos_norm = (numphotos-mean(numphotos))/sd(numphotos)) #groupwise standardization 
+p <- ggplot(tmp2 ,aes(month, year, fill=numphotos_norm)) +
+  geom_tile() + 
+  facet_wrap(~region, ncol=3) +
+  theme_minimal(10) +
+  scale_y_continuous(limits=c(2010, 2017)) +
+  scale_x_continuous(breaks=c(2,5,8,11), labels=month.abb[c(2,5,8,11)])+
+  scale_fill_continuous(type='viridis', labels=NULL) +
+  theme(axis.text.x = element_text(size=10, angle=45, hjust=1), legend.title=element_blank() )
+ggsave("Flickr_60N_numberofphotos_byregion_andyearmon_facet.png", p, height =7, width =8)
 
 ############################
 #Timeseries for whole region
