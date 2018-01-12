@@ -111,15 +111,31 @@ p <- ggplot(all.sf, aes(photo_lat)) +
        x="Latitude",
        y="Number of photos") +
     theme_minimal(base_size=10)
-ggsave("/figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9, width = 4)
+ggsave("figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9, width = 4)
 
 
 #save all.sf
-all.sf$region <- as.character(all.sf$region)
-st_write(all.sf, dsn="D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
+#all.sf$region <- as.character(all.sf$region)
+#st_write(all.sf, dsn="D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 
+############################
+#How many users in each region
+############################
+all.sf.dat <- st_set_geometry(all.sf, NULL)  
+names(all.sf)
+length(unique(all.sf.dat$owner)) 
+#How many photos per user in each region, make a matrix with owner as columns & region as rows
+usercounts <- table(all.sf.dat[, c("region","owner")])
+usercounts[usercounts == 0] <- NA #replace zeros with NAs
+#mean number of photos per user
+Av_photos_per_user <- rowMeans(usercounts, na.rm=TRUE)
+#number of users per region
+usercounts2 <- replace(usercounts, usercounts > 0, 1)
+Num_users_per_region <- rowSums(usercounts2, na.rm=TRUE)
+#save
+userDF <- rbind(Av_photos_per_user, Num_users_per_region)
+write.csv(userDF, "tables/Flickr_60N_users_byregion.csv")
 
-  
 ############################
 #Timeseries by region
 ############################
@@ -152,15 +168,15 @@ names(timeDF) <- c(names(yearmonDF), names(all.sf)[28:39]) # add region names
 timeDF$All_regions <- apply(timeDF[,5:16], 1, sum) #add column summing number of photos for whole region
 
 #save
-write.csv(timeDF, "/tables/Flickr_60N_numberofphotos_byregion_yearmon.csv", row.names=FALSE)
+write.csv(timeDF, "tables/Flickr_60N_numberofphotos_byregion_yearmon.csv", row.names=FALSE)
 
 #summarise each region by year
 YrRegionSummary <- timeDF %>% group_by(year) %>% summarise_at(names(timeDF[5:16]), sum, na.rm=FALSE)
-write.csv(YrRegionSummary, "/tables/Flickr_60N_numberofphotos_byregion_year.csv", row.names=FALSE)
+write.csv(YrRegionSummary, "tables/Flickr_60N_numberofphotos_byregion_year.csv", row.names=FALSE)
 
 #summarise each region by month
 MonRegionSummary <- timeDF %>% group_by(month) %>% summarise_at(names(timeDF[5:16]), sum, na.rm=FALSE)
-write.csv(MonRegionSummary, "/tables/Flickr_60N_numberofphotos_byregion_month.csv", row.names=FALSE)
+write.csv(MonRegionSummary, "tables/Flickr_60N_numberofphotos_byregion_month.csv", row.names=FALSE)
 
 #shape data for ggplot, drop Aland, Faroes, UK
 timeDFlong <- timeDF %>% gather(region, numphotos, 5:16) %>% filter(region %in% c("Canada", "Finland", "Greenland", "Iceland", "Norway", "Russia", "Sweden", "Alaska", "Marine"))
@@ -180,7 +196,7 @@ p <- ggplot(timeDFlong, aes(x = as.Date(datelabels), y = numphotos, colour=regio
 	 scale_x_date(date_breaks="2 years", date_labels="%Y", limits=c(as.Date(as.yearmon("200401", format="%Y%m")), as.Date(as.yearmon("201801", format="%Y%m")))) +
   theme(legend.position = c(0.12, 0.75)) +
 theme_minimal(base_size=9) #to change font add base_family="Hind" 
-ggsave("/figures/Flickr_60N_numberofphotos_byregion.png", p)
+ggsave("figures/Flickr_60N_numberofphotos_byregion.png", p)
 
 #plot temporal trends by region #facetwrap
 p <- ggplot(timeDFlong, aes(x = as.Date(datelabels), y = numphotos)) + 
@@ -194,7 +210,7 @@ p <- ggplot(timeDFlong, aes(x = as.Date(datelabels), y = numphotos)) +
 	   scale_x_date(date_breaks="2 years", date_labels="%Y", limits=c(as.Date(as.yearmon("200401", format="%Y%m")), as.Date(as.yearmon("201801", format="%Y%m")))) +
    theme_minimal(base_size=10)
    
-ggsave("/figures/Flickr_60N_numberofphotos_byregion_facet.png", p, height = 9, width = 4)
+ggsave("figures/Flickr_60N_numberofphotos_byregion_facet.png", p, height = 9, width = 4)
 
 
 #plot seasonal trends by region #facetwrap
@@ -214,7 +230,7 @@ p <- ggplot(timeDFlong, aes(x = season, y = numphotos)) +
        y="Number of photos") +
    theme_minimal(base_size=10)
 
-ggsave("/figures/Flickr_60N_numberofphotos_byregion_andseason_facet.png", p, height =7, width =8)
+ggsave("figures/Flickr_60N_numberofphotos_byregion_andseason_facet.png", p, height =7, width =8)
 
 #plot barplot by month and region
 p <- ggplot(timeDFlong, aes(x = month, y = numphotos)) + 
@@ -228,7 +244,7 @@ p <- ggplot(timeDFlong, aes(x = month, y = numphotos)) +
   scale_x_continuous(breaks=c(2,5,8,11), labels=month.abb[c(2,5,8,11)]) +
   theme_minimal(base_size=10)+
   theme(axis.text.x = element_text(size=10, angle=45, hjust=1))
-ggsave("/figures/Flickr_60N_numberofphotos_byregion_andmonth_facet.png", p, height =7, width =8)
+ggsave("figures/Flickr_60N_numberofphotos_byregion_andmonth_facet.png", p, height =7, width =8)
 
 #plot heatmap of photos by year, month and region
 tmp1 <- group_by(timeDFlong,region) # grouping the data by type
@@ -241,7 +257,7 @@ p <- ggplot(tmp2 ,aes(month, year, fill=numphotos_norm)) +
   scale_x_continuous(breaks=c(2,5,8,11), labels=month.abb[c(2,5,8,11)])+
   scale_fill_continuous(type='viridis', labels=NULL) +
   theme(axis.text.x = element_text(size=10, angle=45, hjust=1), legend.title=element_blank() )
-ggsave("/figures/Flickr_60N_numberofphotos_byregion_andyearmon_facet.png", p, height =7, width =8)
+ggsave("figures/Flickr_60N_numberofphotos_byregion_andyearmon_facet.png", p, height =7, width =8)
 
 ############################
 #Timeseries for whole region
@@ -256,7 +272,7 @@ countsub <- rbind(countsub, c(199804, "04", 1998, 0))
 countsub <- countsub[with(countsub, order(countsub$yearmon)),]
 a<-ts(countsub$V1,start=c(1997,1),freq=12)
 #print(a)
-write.csv(matrix(c(a, 0), ncol=12, byrow=TRUE, dimnames=list(c(1997:2017), format(seq.Date(as.Date('2000-01-01'), by = 'month', len = 12), "%b"))), "/tables/Flickr_60N_numberofphotos_yearmon_matrix.csv", row.names=TRUE)
+write.csv(matrix(c(a, 0), ncol=12, byrow=TRUE, dimnames=list(c(1997:2017), format(seq.Date(as.Date('2000-01-01'), by = 'month', len = 12), "%b"))), "tables/Flickr_60N_numberofphotos_yearmon_matrix.csv", row.names=TRUE)
 
 # png(paste0(wd, "/Flickr_60N_numberofphotos_byyearmon.png"),width=1000, height=400) 
 	# plot(a, type="l", lwd=2, col="red", ylab= "Number of photos",xlim=c(2004,2017),axes=F)
@@ -275,14 +291,14 @@ p <- ggplot(timeDF, aes(x = as.Date(datelabels), y = All_regions)) +
      y="Number of photos") +
 	 scale_x_date(date_breaks="2 years", date_labels="%Y", limits=c(as.Date(as.yearmon("200401", format="%Y%m")), as.Date(as.yearmon("201801", format="%Y%m"))))+
 theme_minimal(base_size=12) #to change font add base_family="Hind" 
-ggsave("/figures/Flickr_60N_numberofphotos_allregions.png", p, height=4, width=7)
+ggsave("figures/Flickr_60N_numberofphotos_allregions.png", p, height=4, width=7)
 
 ############################
 #Photos with tags
 ############################
 tagcount <- dat %>% group_by(tags) %>% summarise(no_rows = length(tags))
 nrow(tagcount) #589736 different tags
-write.csv(tagcount, "/tables/Flickr_60N_tags_summary.csv", row.names=TRUE)
+write.csv(tagcount, "tables/Flickr_60N_tags_summary.csv", row.names=TRUE)
 
 tagcount[tagcount$no_rows==max(tagcount$no_rows),] #photos with no tags
 sum(tagcount$no_rows)-max(tagcount$no_rows) #photos with tags
@@ -346,9 +362,9 @@ FUN2 <- function(timeList, timevar) {
 }
 
 #run across years
-saveHTML(FUN2(timeList=c(2004:2017), timevar="year"), img.name="Flickr_60N_byYear", imgdir="/interactive/animation_images", htmlfile="/interactive/Flickr_60N_byYear.html", autoplay = FALSE, loop = FALSE, verbose = FALSE, single.opts = "'controls': ['first', 'previous', 'play', 'next', 'last', 'loop', 'speed'], 'delayMin': 0")
+saveHTML(FUN2(timeList=c(2004:2017), timevar="year"), img.name="Flickr_60N_byYear", imgdir="interactive/animation_images", htmlfile="interactive/Flickr_60N_byYear.html", autoplay = FALSE, loop = FALSE, verbose = FALSE, single.opts = "'controls': ['first', 'previous', 'play', 'next', 'last', 'loop', 'speed'], 'delayMin': 0")
 graphics.off()
 
 #run across months		 
-saveHTML(FUN2(timeList=c(1:12), timevar="month"), img.name="Flickr_60N_byMonth", imgdir="/interactive/animation_images", htmlfile="/interactive/Flickr_60N_byMonth.html", autoplay = FALSE, loop = FALSE, verbose = FALSE, single.opts = "'controls': ['first', 'previous', 'play', 'next', 'last', 'loop', 'speed'], 'delayMin': 0")
+saveHTML(FUN2(timeList=c(1:12), timevar="month"), img.name="Flickr_60N_byMonth", imgdir="interactive/animation_images", htmlfile="interactive/Flickr_60N_byMonth.html", autoplay = FALSE, loop = FALSE, verbose = FALSE, single.opts = "'controls': ['first', 'previous', 'play', 'next', 'last', 'loop', 'speed'], 'delayMin': 0")
 graphics.off()
