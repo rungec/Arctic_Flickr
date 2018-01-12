@@ -56,7 +56,7 @@ dat$photo_lat <- dat$latitude
 worldmap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBorders_60degreesN_lambert.shp")
 
 ############################
-#convert to spatial points
+#convert to spatial points ----
 ############################
 # WGS84 = EPSG: 4326
 #North pole azimithul lambert equal area ESRI:102017 +proj=laea +lat_0=90 +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs 
@@ -87,7 +87,7 @@ all.sf <- st_transform(all.sf, crs=102017)
 #	ggsave(paste0("Flickr_60N_allpoints.png"))
 
 ############################
-#Identify region
+#Identify region ----
 ############################
 #Which points fall within which country
 spatialjoin <- st_intersects(all.sf, worldmap, sparse = FALSE)
@@ -119,7 +119,7 @@ ggsave("figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9
 #st_write(all.sf, dsn="D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 
 ############################
-#How many users in each region
+#How many users in each region ----
 ############################
 all.sf.dat <- st_set_geometry(all.sf, NULL)  
 names(all.sf)
@@ -137,7 +137,7 @@ userDF <- rbind(Av_photos_per_user, Num_users_per_region)
 write.csv(userDF, "tables/Flickr_60N_users_byregion.csv")
 
 ############################
-#Timeseries by region
+#Timeseries by region ----
 ############################
 
 #set up dummy df listing times
@@ -181,7 +181,7 @@ write.csv(MonRegionSummary, "tables/Flickr_60N_numberofphotos_byregion_month.csv
 #shape data for ggplot, drop Aland, Faroes, UK
 timeDFlong <- timeDF %>% gather(region, numphotos, 5:16) %>% filter(region %in% c("Canada", "Finland", "Greenland", "Iceland", "Norway", "Russia", "Sweden", "Alaska", "Marine"))
 
-#plot temporal trends by region
+#plot temporal trends by region ----
 p <- ggplot(timeDFlong, aes(x = as.Date(datelabels), y = numphotos, colour=region, linetype=region)) + 
   geom_line(size=1 ) + 
   #scale_color_manual(values=c(wes_palette(9, name="Zissou", type="continuous")))+
@@ -198,7 +198,7 @@ p <- ggplot(timeDFlong, aes(x = as.Date(datelabels), y = numphotos, colour=regio
 theme_minimal(base_size=9) #to change font add base_family="Hind" 
 ggsave("figures/Flickr_60N_numberofphotos_byregion.png", p)
 
-#plot temporal trends by region #facetwrap
+#plot temporal trends by region #facetwrap 
 p <- ggplot(timeDFlong, aes(x = as.Date(datelabels), y = numphotos)) + 
   geom_line(size=1, colour=wes_palette(1, name="Zissou", type="discrete")) + 
   facet_grid(region ~ . , scales = 'free_y') +
@@ -213,7 +213,7 @@ p <- ggplot(timeDFlong, aes(x = as.Date(datelabels), y = numphotos)) +
 ggsave("figures/Flickr_60N_numberofphotos_byregion_facet.png", p, height = 9, width = 4)
 
 
-#plot seasonal trends by region #facetwrap
+#plot seasonal trends by region #facetwrap ----
 timeDFlong$season[timeDFlong$month %in% c(12, 1, 2)] <- "Winter"
 timeDFlong$season[timeDFlong$month %in% c(3,4,5)] <- "Spring"
 timeDFlong$season[timeDFlong$month %in% c(6,7,8)] <- "Summer"
@@ -232,7 +232,7 @@ p <- ggplot(timeDFlong, aes(x = season, y = numphotos)) +
 
 ggsave("figures/Flickr_60N_numberofphotos_byregion_andseason_facet.png", p, height =7, width =8)
 
-#plot barplot by month and region
+#plot barplot by month and region ----
 p <- ggplot(timeDFlong, aes(x = month, y = numphotos)) + 
   geom_col(colour=wes_palette(1, name="Zissou", type="discrete"), fill=wes_palette(1, name="Zissou", type="discrete")) + 
   facet_wrap(~region, ncol=3, scales = 'free_y') +
@@ -246,7 +246,7 @@ p <- ggplot(timeDFlong, aes(x = month, y = numphotos)) +
   theme(axis.text.x = element_text(size=10, angle=45, hjust=1))
 ggsave("figures/Flickr_60N_numberofphotos_byregion_andmonth_facet.png", p, height =7, width =8)
 
-#plot heatmap of photos by year, month and region
+#plot heatmap of photos by year, month and region ----
 tmp1 <- group_by(timeDFlong,region) # grouping the data by type
 tmp2 <- mutate(tmp1, numphotos_norm = (numphotos-mean(numphotos))/sd(numphotos)) #groupwise standardization 
 p <- ggplot(tmp2 ,aes(month, year, fill=numphotos_norm)) +
@@ -260,7 +260,7 @@ p <- ggplot(tmp2 ,aes(month, year, fill=numphotos_norm)) +
 ggsave("figures/Flickr_60N_numberofphotos_byregion_andyearmon_facet.png", p, height =7, width =8)
 
 ############################
-#Timeseries for whole region
+#Timeseries for whole region ----
 ############################
 #Temporal trends for all regions
 
@@ -294,7 +294,7 @@ theme_minimal(base_size=12) #to change font add base_family="Hind"
 ggsave("figures/Flickr_60N_numberofphotos_allregions.png", p, height=4, width=7)
 
 ############################
-#Photos with tags
+#Photos with tags ----
 ############################
 tagcount <- dat %>% group_by(tags) %>% summarise(no_rows = length(tags))
 nrow(tagcount) #589736 different tags
@@ -304,7 +304,7 @@ tagcount[tagcount$no_rows==max(tagcount$no_rows),] #photos with no tags
 sum(tagcount$no_rows)-max(tagcount$no_rows) #photos with tags
 
 ############################
-#Density plots
+#Density plots ----
 ############################
 
 #http://ryanruthart.com/using-r-to-perform-a-spatial-join-and-aggregate-data/
