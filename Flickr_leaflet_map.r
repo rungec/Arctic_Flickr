@@ -2,7 +2,7 @@
 #Flickr data
 #This script reads a .csv listing the flickr photos for a given location (1,782,987 rows), transforms to spatial data and makes plots.
 
-setwd("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis")
+setwd("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/interactive")
 
 library(rgdal)
 library(sf)
@@ -16,10 +16,21 @@ options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
 
 ############################
-#load data
+#load data ----
 ############################
-dat <- read_csv("D:/Box Sync/Arctic/Data/Flickr/FlickrPhotosNorthOf60.csv")
-#drop rows that are outside 60N, drop 904 rows, leaving 1782083
+#load data
+dat_all <- read_csv("D:/Box Sync/Arctic/Data/Flickr/FlickrPhotosNorthOf60.csv")
+dat_iceland <- read_csv("D:/Box Sync/Arctic/Data/Flickr/FlickrPhotosIceland.csv")
+
+#drop iceland from original dataset
+dat_sub <- dat_all[!(dat_all$longitude <=-12 
+                     & dat_all$longitude >=-27 
+                     & dat_all$latitude >=62 
+                     & dat_all$latitude <=68), ]
+
+#sub in the new iceland data
+dat <- rbind(dat_sub, dat_iceland)
+#drop rows that are outside 60N
 dat <- dat[dat$latitude >= 60, ] 
 
 # WGS84 = EPSG: 4326
@@ -39,9 +50,12 @@ subdat <- dat[dat$year==2010 & dat$month=="07", ]
 all.sf <- st_as_sf(subdat, coords=c('longitude', 'latitude'))
 st_crs(all.sf) <- 4326 #WGS84
 
+#load 60N line
+line60N <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN.shp")
+line60N <- st_transform(line60N, 4326) #laea to WGS84
 
 ############################
-#set up polar projection
+#set up polar projection ----
 ############################
 
 extent <- 11000000 + 9036842.762 + 667
@@ -99,9 +113,9 @@ polarmaps <- purrr::map2(crses, tileURLtemplates,
                          })
 
 ############################
-# Build the map components
+# Build the map components ----
 ############################
-#popup content
+#popup text and hyperlink
 content <- paste0("<b><a href=",
                   all.sf$url_m,
                   ">",
@@ -111,9 +125,10 @@ content <- paste0("<b><a href=",
                   "</a></b>"
 )
 
-
+#add maptiles, graticules and circle markers
 m <- polarmaps[[4]] %>%
   addGraticule(interval = 20, style=list(color="grey30", weight=0.15)) %>%
+  addPolylines(data=line60N, stroke=TRUE, color="grey30", weight=0.15) %>%
   addCircleMarkers(data=all.sf,  color = "#f97f63", fillColor = "#fceccf", popup = content,
                    stroke = TRUE, fillOpacity = 0.5)
   
