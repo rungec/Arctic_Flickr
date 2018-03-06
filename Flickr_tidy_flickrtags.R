@@ -24,7 +24,7 @@ length(unique(flickrshp$tags))
 
 
 tags <- flickrshp$tags
-#tags <- tags[1:20]
+#tags <- tags[1:20000]
 titles <- flickrshp$title
 #titles <- titles[1:20]
 
@@ -32,21 +32,23 @@ titles <- flickrshp$title
 
 #Tidy tags
 
-taglist <- str_replace_all(tags, "[\\$+^'~|¨¦´£¤°±×=¬¥!@#%&*()_+:\"?,./;'-{}]", "") #get rid of punctuation, but not : or =
-taglist <- str_replace_all(taglist, "[\\>]", " ") #replace > or < with space
+taglist <- str_replace_all(tags, "[\\$\\+^'~|¨¦´£¤°±×=¬¥!@#%&*()_+:\"?,./;'-]", "") #get rid of punctuation, but not : or =
+taglist <- str_replace_all(taglist, "[\\><]", " ") #replace > or < with space
+taglist <- str_replace_all(taglist, "[\\{}]", "") #replace {} with nothing
 taglist <- str_split(taglist, pattern=" ", simplify=FALSE) #drop spaces
 taglist <- lapply(taglist, function(currtags) {
-  newtags <- currtags[which(str_detect(currtags, "[0-9]")==FALSE)]
+  newtags <- currtags[which(str_detect(currtags, "[0-9]")==FALSE)] #drop any words containing numbers
   newtags <- newtags[which(str_detect(newtags, "[\\©]")==FALSE)] #drop any words containing ©
   newtags <- newtags[which(str_detect(newtags, "copyright")==FALSE)] #drop any words containing ©
   newtags <- newtags[which(str_detect(newtags, "exif")==FALSE)] #drop any words containing exif
   newtags <- newtags[which(str_length(newtags)>0)] #drop any blank entries
-}) #drop any words containing numbers
+}) 
 
 #Tidy titles
 stopwords <- c("and", "this", "the", "of", "a", "in", "at", "on", "to", "from", "i", "for", "with", "de", "la", "is", "på", "by", "my", "og", "vs", "en", "it", "up", "you", "near", "an", "one", "our", "med") #define stopwords
-titlelist <- str_replace_all(titles, "[\\$+^'~|¨¦´£¤°±×=¬¥!@#%&*()_+:\"?,./;'-{}]", "") #get rid of punctuation, but not : or =
-titlelist <- str_replace_all(titlelist, "[\\>]", " ") #replace > or < with space
+titlelist <- str_replace_all(titles, "[\\$+^'~|¨¦´£¤°±×=¬¥!@#%&*()_+:\"?,./;'-]", "") #get rid of punctuation, but not : or =
+titlelist <- str_replace_all(titlelist, "[\\><]", " ") #replace > or < with space
+titlelist <- str_replace_all(titlelist, "[\\{}]", "") #replace {} with nothing
 titlelist <- tolower(titlelist) #lowercase
 titlelist <- str_split(titlelist, pattern=" ", simplify=FALSE) #each word becomes an item in a vector, drop spaces
 titlelist <- lapply(titlelist, function(currtitles){
