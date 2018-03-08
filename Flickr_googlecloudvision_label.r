@@ -63,7 +63,67 @@ for(currsplit in 1:length(splits)){
   names(google) <- flickr_urls[, "id"]
   save(google,file=sprintf("intermediate/google_%s.Rdata", countertext)) #save the subset
 }
+rm(splits)
 
 ### Post processing ---
 
+#combine data - about 5.6gb
 filelist <- list.files(paste0(wd, "/intermediate"))
+allgoogle <- list() #set up empty list
+  for(i in 1:length(filelist)){
+    load(paste0("intermediate/", filelist[i]))
+    allgoogle <- append(allgoogle, google)
+  }
+save(allgoogle,file="output/google_all_labels.Rdata") #save the dataset
+
+#summarise data and make a tibble
+#google_summary <- flickrshp[1:nrow(flickrshp), c("id", "url_m", "region", "yearmon")] %>% st_set_geometry(NULL)
+google_summary <- cbind(flickrshp,   
+                        checkgoogleid = names(allgoogle),
+                        numtags = unlist(lapply(allgoogle, function(x) nrow(x))), #number of tags for each photo
+                        minscore = unlist(lapply(allgoogle, function(x) min(x$score))), #min score for each photo
+                        maxscore = unlist(lapply(allgoogle, function(x) max(x$score))), #max score for each photo
+                        firsttag = unlist(lapply(allgoogle, function(x) first(x$description))) #highest scoring tag for each photo
+)
+
+alltags <- lapply(allgoogle, function(x) {
+                         if(nrow(x) >= 10) { 
+                           tags <- x$description[1:10] 
+                           score <- x$score[1:10] 
+                         } else {
+                           tags <- rep(NA, 10)
+                           score <- rep(NA, 10)
+                           tags[1:nrow(x)] <- x$description[1:nrow(x)]
+                           score[1:nrow(x)] <- x$score[1:nrow(x)]
+                         } 
+                    return(cbind(tags, score))
+                    }) #top 10 tags
+top10tags <- do.call(rbind, top10tags)
+names(top10tags) <- paste0(rep(c("tag", "score"), each=10), 1:10)
+google_summary <- cbind(google_summary, top10tags)
+
+#save the full dataset
+st_write(google_summary, "output/Flickr_Artic_60N_plus_google_labels.shp")
+google_summary_df <- google_summary %>% st_set_geometry(NULL) %>% data.frame()
+write.csv(google_summary_df, "output/Flickr_Artic_60N_plus_google_labels.csv")
+
+#Most popular tags
+tagfreq <- plyr::count(unlist(top10tags[ , 1:10])) #count how frequently each tag is used
+write.csv(tagfreq, "output/frequency_of_google_label_words.csv")
+
+#Tags scoring above 60
+
+highscoretags <- lapply(allgoogle, function(x) {
+  if(nrow(x) >= 10) { 
+    tags <- x$description[1:10] 
+    score <- x$score[1:10] 
+  } else {
+    tags <- rep(NA, 20)
+    score <- rep(NA, 20)
+    tags[1:nrow(x)] <- x$description[1:nrow(x)]
+    score[1:nrow(x)] <- x$score[1:nrow(x)]
+  } 
+  return(cbind(tags, score))
+}) #top 10 tags
+top10tags <- do.call(rbind, top10tags)
+names(top10tags) <- paste0(rep(c("tag", "score"), each=10), 1:10)
