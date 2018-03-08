@@ -26,29 +26,44 @@ googleAuthR::gar_auth()
 flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 
 ### Preliminary processing ---
+#drop photos pre 2000 and from 2018 or later
+flickrshp <- flickrshp[flickrshp$year<2018 & flickrshp$year>2000, ]
 
 ### Main processing ----
 
-pb <- txtProgressBar()
+#set up splits 
+d <- 1:nrow(flickrshp)
+splits <- split(d, ceiling(seq_along(d)/3000))
+rm(d)
 
-
-counter = "000"
-flickr_sub <- flickrshp[1:100, ]
-starttime <- Sys.time()
-google <- rep(NA,nrow(flickr_sub))
-if(file.exists(sprintf("intermediate/google_%s.Rdata", counter)) load(sprintf("intermediate/google_%s.Rdata", counter)))
-
-for(i in 1:nrow(flickr_sub)){
-  if(is.na(google[i])){
-    google[i] <- try(list(getGoogleVisionResponse(imagePath=gsub("https","http",flickr_sub$url_m[i]), feature = 'LABEL_DETECTION')))
+#loop over splits
+for(currsplit in 1:length(splits)){
+  countertext = formatC(currsplit, width = 4, format = "d", flag = "0") #Pad with zero
+  print(paste("Starting", countertext, Sys.time(), sep=" "))
+  
+  #pull out the urls for this split
+  n1 <- splits[[currsplit]][1] #from
+  n2 <- tail(splits[[currsplit]], 1) #to
+  flickr_urls <- flickrshp[n1:n2, c("id", "url_m")] %>% st_set_geometry(NULL) %>% data.frame() #pull out urls, drop the georeferencing, change tibble to data.frame
+ 
+  #set an empty list
+  google <- rep(NA, nrow(flickr_urls)) 
+  
+  #if file is already there load it
+  if(file.exists(sprintf("intermediate/google_%s.Rdata", countertext))) load(sprintf("intermediate/google_%s.Rdata", countertext))
+  
+  #extract googleVision tags for each photo in subset
+  for (i in 1:nrow(flickr_urls)){
+    if(is.na(google[i])){
+      google[[1]][i] <- try(list(getGoogleVisionResponse(imagePath=gsub("https","http",flickr_urls[i,"url_m"]), feature = 'LABEL_DETECTION', numResults=20)))
+    }
+    #save the file every 1000 photos
+    if(i%%1000==0) save(google,file=sprintf("intermediate/google_%s.Rdata", countertext))
   }
-  setTxtProgressBar(pb, i/nrow(flickr_sub))
-  if(i%%100==0) save(google,file=sprintf("intermediate/google_%s.Rdata", counter))
+  names(google) <- flickr_urls[, "id"]
+  save(google,file=sprintf("intermediate/google_%s.Rdata", countertext)) #save the subset
 }
-save(google,file=sprintf("intermediate/google_%s.Rdata", counter))
-endtime <- Sys.time()
-close(pb)
-
-timetaken <- endtime - starttime
 
 ### Post processing ---
+
+filelist <- list.files(paste0(wd, "/intermediate"))
