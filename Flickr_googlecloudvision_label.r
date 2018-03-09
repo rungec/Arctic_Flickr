@@ -2,6 +2,7 @@
 # then uses Google Cloud Vision https://cloud.google.com/vision/ to tag each image
 # It returns the tag, score, and MID code that can be used in Knowledge graph https://www.google.com/intl/bn/insidesearch/features/search/knowledge.html
 # https://www.r-bloggers.com/google-vision-api-in-r-rooglevision/
+# It follows on from Flickr_tidy_flickrtags.r
 
 ### Set up libraries ----
 library(sf)
@@ -23,7 +24,8 @@ options("googleAuthR.scopes.selected" = c("https://www.googleapis.com/auth/cloud
 googleAuthR::gar_auth()
 
 ### Load data ----
-flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
+#flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
+flickrshp <- load(file="output/Flickr_Artic_60N_plus_flickr_labels.Rdata") #includes the flickr tags
 
 ### Preliminary processing ---
 #drop photos pre 2000 and from 2018 or later
@@ -74,15 +76,26 @@ allgoogle <- list() #set up empty list
     load(paste0("intermediate/", filelist[i]))
     allgoogle <- append(allgoogle, google)
   }
-save(allgoogle,file="output/google_all_labels.Rdata") #save the dataset
+save(allgoogle,file="output/Google_output.Rdata") #save the dataset
 
-#Make a list of all the tags and save it
-allgoogle <- lapply(allgoogle, function(x) {
-  x$id <- rep(names(x), nrow(x))
-  return(x)
-})
-alltags <- do.call(rbind, allgoogle)
-write.csv(alltags, "output/Google_labels_allphotos.csv")
+#Join the data to flickrshp and save it
+flickrshp$google <- allgoogle
+save(flickrshp,file="output/Flickr_Artic_60N_plus_flickr_and_google_labels.Rdata")
+
+#test that the ids match between the two datasets
+checkfun <- function(flickrshpt){
+  counter=0
+  for(i in 1:nrow(flickrshpt)){
+    if(flickrshpt$id[i]!=as.numeric(names(flickrshpt$google)[[i]])) print(sprintf("ID mismatch row %s original %s google %s", i, flickrshpt$id[i], names(flickrshpt$google)[[i]]))
+    else  (counter=counter+1)
+  }
+  print(sprintf("%s of %s ids match", nrow(flickrshpt), counter))
+}
+checkfun(flickrshp)
+
+#Make a long data.frame of all the google tags and save it
+alltags <- allgoogle %>% tibble() %>% unnest(.id="name")
+write.csv(alltags, "output/Google_labels_allphotos.csv", fileEncoding = "UTF-8")
 
 #Frequency of all tags scoring above 60
 tagfreq <- plyr::count(alltags[alltags$score>=0.6, "description"]) #count how frequently each tag is used
@@ -90,17 +103,16 @@ write.csv(tagfreq, "output/frequency_of_google_label_words_overscore60.csv")
 
 
 #add a summary of the data to the flickrshp
-#google_summary <- flickrshp[1:nrow(flickrshp), c("id", "url_m", "region", "yearmon")] %>% st_set_geometry(NULL)
-google_summary <- cbind(flickrshp[, c("id", "owner", "secret", "title", "datetkn", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region")],   
-                        checkgoogleid = names(allgoogle),
-                        numtags = unlist(lapply(allgoogle, function(x) nrow(x))), #number of tags for each photo
-                        #minscore = unlist(lapply(allgoogle, function(x) min(x$score))), #min score for each photo
-                        maxscore = unlist(lapply(allgoogle, function(x) max(x$score))) #max score for each photo
-                        #firsttag = unlist(lapply(allgoogle, function(x) first(x$description))) #highest scoring tag for each photo
-)
+flickrshp$numtags = unlist(lapply(allgoogle, function(x) nrow(x))) #number of tags for each photo
+flickrshp$minscore = unlist(lapply(allgoogle, function(x) min(x$score))) #min score for each photo
+flickrshp$maxscore = unlist(lapply(allgoogle, function(x) max(x$score))) #max score for each photo
+flickrshp$firsttag = unlist(lapply(allgoogle, function(x) first(x$description))) #highest scoring tag for each photo
+save(flickrshp,file="output/Flickr_Artic_60N_plus_flickr_and_google_labels.Rdata")
 
+
+#make a table of the top 10 google tags  
 top10tags <- lapply(allgoogle, function(x) {
-                          tags <- rep(NA, 20)
+                          tags <- rep(NA, 10)
                           if(nrow(x)>=10) {
                             tags <- x$description[1:10]
                           } else {
@@ -109,15 +121,33 @@ top10tags <- lapply(allgoogle, function(x) {
                        return(tags)
                     }) #top 10 tags
 top10tags <- do.call(rbind, top10tags)
-names(top10tags) <- paste0(rep(c("tag"), each=10), 1:10)
+colnames(top10tags) <- paste0(rep(c("googletag"), each=10), 1:10)
+write.csv(top10tags, "output/Flickr_Artic_60N_plus_google_labels.csv", row.names = TRUE)
+
+#add the top 10 google tags as columns in the .shp, then save a .shp for each region
+google_summary <- within(flickrshp, rm(flickr_tags, title_tags, google))
 google_summary <- cbind(google_summary, top10tags)
 
-#save the full dataset
-st_write(google_summary, "output/Flickr_Artic_60N_plus_google_labels.shp")
-google_summary_df <- google_summary %>% st_set_geometry(NULL) %>% data.frame()
-write.csv(google_summary_df, "output/Flickr_Artic_60N_plus_google_labels.csv")
+#function to save as shp
+regionlist <- list(NorthAmerica = c("Alaska", "Canada"), 
+                   Scandinavia=c("Norway", "Sweden"), 
+                   Finland=c("Finland", "Aland"), 
+                   Russia=c("Russia"), 
+                   Marine=c("Marine"), 
+                   IcelandGreenland=c("Iceland", "Greenland"),
+                   OtherIslands =c("Faroe.Islands", "United.Kingdom"))
+
+lapply(1:length(regionlist), function(i){
+  curregion <- regionlist[i]   
+  curr_sub <- google_summary[google_summary$region %in% curregion[[1]], ]
+      st_write(curr_sub, sprintf("output/Flickr_Artic_60N_plus_google_labels_%s.shp", names(curregion)))
+    curr_sub_df <- curr_sub %>% st_set_geometry(NULL) %>% data.frame()
+      write.csv(curr_sub_df, sprintf("output/Flickr_Artic_60N_plus_top10googlelabels_%s.csv", names(curregion)), fileEncoding = "UTF-8")
+  })
 
 
+                   
+                   
 
 
 
