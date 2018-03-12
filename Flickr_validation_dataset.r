@@ -45,7 +45,8 @@ regionlist <- list(IcelandGreenland=c("Iceland", "Greenland"),
 
 flickr_l <- lapply(seq_along(regionlist), function(i){
   curregion <- regionlist[i] 
-  flickrshp_sub <- flickrshp[flickrshp$region %in% curregion[[1]], ]
+  #extract rows for that region, drop unwanted cols
+  flickrshp_sub <- flickrshp[flickrshp$region %in% curregion[[1]], c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region", "lulc_code", "lulc_desc")]
   flickrshp_sample <- flickrshp[sample(nrow(flickrshp), 1000), ]
 })
 
