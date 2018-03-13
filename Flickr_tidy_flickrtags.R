@@ -1,5 +1,5 @@
 # Arctic CONNECT Project
-# This script follows on from Flickr_input_exploration.r & Flickr_validation_dataset.r
+# This script follows on from Flickr_input_exploration.r
 # Preceeds Flickr_googlecloudvision_label.r
 # It tidies the tags that people have given the photos on flickr
 # A separate script uses google vision to label the photos
@@ -17,8 +17,7 @@ options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
 
 ### Load data ----
-#flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
-flickrshp <- load(file="input/Flickr_Artic_60N.Rdata")
+flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 write.csv(data.frame(flickrshp$tags, flickrshp$title, flickrshp$url_m), "input/flickr_tags_and_titles_all_photos.csv", fileEncoding="UTF-8")
 
 length(unique(flickrshp$title))
@@ -78,7 +77,7 @@ titlelist <- lapply(titlelist, function(currtitles){
 flickrshp_tags <- flickrshp[, c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region", "lulc_code", "lulc_desc")]
 flickrshp_tags$flickr_tags <- taglist
 flickrshp_tags$title_tags <- titlelist
-  save(flickrshp_tags,file="output/Flickr_Artic_60N_plus_flickr_labels.Rdata")
+  save(flickrshp_tags,file="input/Flickr_Artic_60N_plus_flickr_labels.Rdata")
 
 #save in long format - each tag is a row, with photo information duplicated on each row
 flickrshp_tags_ft <- flickrshp_tags %>% data.frame() %>% unnest(flickr_tags)
