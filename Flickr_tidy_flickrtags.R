@@ -74,7 +74,7 @@ titlelist <- lapply(titlelist, function(currtitles){
 #or just save file with UTF-8 encoding
 
 ### Join to flickrshp and save ----
-flickrshp_tags <- flickrshp[, c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region", "lulc_code", "lulc_desc")]
+flickrshp_tags <- flickrshp[, c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region")]
 flickrshp_tags$flickr_tags <- taglist
 flickrshp_tags$title_tags <- titlelist
   save(flickrshp_tags,file="input/Flickr_Artic_60N_plus_flickr_labels.Rdata")

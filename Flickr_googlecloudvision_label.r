@@ -35,7 +35,8 @@ googleAuthR::gar_auth()
 
 ### Load data ----
 #flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
-flickrshp <- load(file="input/Flickr_Artic_60N_plus_flickr_labels.Rdata") #includes the flickr tags
+load(file="input/Flickr_Artic_60N_plus_flickr_labels.Rdata") #includes the flickr tags
+flickrshp <- flickr_sub
 
 ### Preliminary processing ---
 #drop photos pre 2000 and from 2018 or later
