@@ -55,5 +55,5 @@ flickr_val <- do.call(rbind, flickr_l)
 st_write(flickr_val, "validation/Flickr_Artic_60N_validationdata.shp")
 #Save as .csv
 flickr_val_df <- flickr_val[] %>% st_set_geometry(NULL) %>% data.frame() 
-write.csv(flickr_val, "validation/Flickr_Artic_60N_validationdata.csv", fileEncoding = "UTF-8")
+write.csv(flickr_val_df, "validation/Flickr_Artic_60N_validationdata.csv", fileEncoding = "UTF-8")
 
