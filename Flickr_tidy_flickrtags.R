@@ -11,7 +11,6 @@ setwd(wd)
 library(sf)
 library(plyr)
 library(tidyverse)
-library(tm)
 
 options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
@@ -51,7 +50,7 @@ taglist <- lapply(taglist, function(currtags) {
 }) 
 
 #Tidy titles
-stopwords <- c("and", "this", "the", "of", "a", "in", "at", "on", "to", "from", "i", "for", "with", "de", "la", "is", "pÃ¥", "by", "my", "og", "vs", "en", "it", "up", "you", "near", "an", "one", "our", "med") #define stopwords
+stopwords <- c("and", "this", "the", "of", "a", "in", "at", "on", "to", "from", "i", "for", "with", "de", "la", "is", "på", "by", "my", "og", "vs", "en", "it", "up", "you", "near", "an", "one", "our", "med") #define stopwords
 titlelist <- str_replace_all(titles, "[\\$\\+\\^'~|¨¦´£¤°±¬¥!@#%&*()_:\"?,/;'-\\=\\[\\]\\>]", "") #get rid of punctuation, but not : or =
 titlelist <- str_replace_all(titlelist, "[:punct:]", "") #get rid of punctuation
 #titlelist <- str_replace_all(titlelist, "[\\>]", " ") #replace > or < with space
@@ -68,7 +67,7 @@ titlelist <- lapply(titlelist, function(currtitles){
   }) 
 
 
-#if you want to change Ã¥Ã¸Ã¦ etc 
+#if you want to change åæø etc 
 #iconv(x, from="UTF-8", to = "latin1")
 #iconv(x, from="latin1", to = "ASCII/TRANSLIT")
 #or just save file with UTF-8 encoding
