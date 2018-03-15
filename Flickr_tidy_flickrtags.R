@@ -50,7 +50,7 @@ taglist <- lapply(taglist, function(currtags) {
 }) 
 
 #Tidy titles
-stopwords <- c("and", "this", "the", "of", "a", "in", "at", "on", "to", "from", "i", "for", "with", "de", "la", "is", "på", "by", "my", "og", "vs", "en", "it", "up", "you", "near", "an", "one", "our", "med") #define stopwords
+stopwords <- c("and", "this", "the", "of", "a", "in", "at", "on", "to", "from", "i", "for", "with", "de", "la", "is", "på", "by", "my", "og", "vs", "en", "it", "up", "you", "near", "an", "one", "our", "med", "img", "dsc", "jpg", "imgjpg", "dscjpg") #define stopwords
 titlelist <- str_replace_all(titles, "[\\$\\+\\^'~|¨¦´£¤°±¬¥!@#%&*()_:\"?,/;'-\\=\\[\\]\\>]", "") #get rid of punctuation, but not : or =
 titlelist <- str_replace_all(titlelist, "[:punct:]", "") #get rid of punctuation
 #titlelist <- str_replace_all(titlelist, "[\\>]", " ") #replace > or < with space
