@@ -124,17 +124,37 @@ ggsave("figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9
 all.sf.dat <- st_set_geometry(all.sf, NULL)  
 names(all.sf)
 length(unique(all.sf.dat$owner)) 
-#How many photos per user in each region, make a matrix with owner as columns & region as rows
-usercounts <- table(all.sf.dat[, c("region","owner")])
-usercounts[usercounts == 0] <- NA #replace zeros with NAs
-#mean number of photos per user
-Av_photos_per_user <- rowMeans(usercounts, na.rm=TRUE)
+#How many photos per user in each region
+usercounts <- all.sf.dat %>% group_by(region) %>% count(owner) %>% summarise(Av_photos_per_user=mean(n), Med_photos_per_user=median(n))
+
 #number of users per region
-usercounts2 <- replace(usercounts, usercounts > 0, 1)
-Num_users_per_region <- rowSums(usercounts2, na.rm=TRUE)
+Num_users_per_region<- all.sf.dat %>% group_by(region, owner) %>% tally() %>% count() 
+
 #save
-userDF <- rbind(Av_photos_per_user, Num_users_per_region)
+userDF <- merge(usercounts, Num_users_per_region)
+names(userDF)[4] <- "n_users"
 write.csv(userDF, "tables/Flickr_60N_users_byregion.csv")
+
+#How many photos does each user contribute, overall
+usercounts_overall <- all.sf.dat %>% group_by(owner) %>% tally() %>% count(n)
+names(usercounts_overall) <- c("num_photos_contributed", "num_users")
+write.csv(usercounts_overall, "tables/Number_of_photos_contributed_by_users.csv", row.names = FALSE)
+
+png("figures/Histogram_of_photos_per_user.png")
+ggplot(usercounts_overall, aes(x=num_photos_contributed, y=num_users)) + 
+  geom_line() +
+  xlim(0,1000) +
+  xlab("Number of photos contributed")+ylab("User frequency")+
+  theme_minimal()
+dev.off()
+png("figures/Histogram_of_photos_per_user_zoom.png")
+ggplot(usercounts_overall, aes(x=num_photos_contributed, y=num_users)) + 
+  geom_line() +
+  xlim(0,250) + ylim(0,1000)+
+  xlab("Number of photos contributed")+ylab("User frequency")+
+  theme_minimal()
+dev.off()
+
 
 ############################
 #Timeseries by region ----
