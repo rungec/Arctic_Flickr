@@ -12,6 +12,7 @@ library(RoogleVision) #for getGoogleVision
 library(jsonlite) # to import credentials
 
  wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis"
+ #wd <- "/home/cru016@ad.uit.no/Documents/tag_analysis"
  setwd(wd)
  
  #set list of regions to process
@@ -34,9 +35,10 @@ options("googleAuthR.scopes.selected" = c("https://www.googleapis.com/auth/cloud
 googleAuthR::gar_auth()
 
 ### Load data ----
-#flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
+#flickrshp <- read_sf("input/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 load(file="input/Flickr_Artic_60N_plus_flickr_labels.Rdata") #includes the flickr tags
-flickrshp <- flickr_sub
+flickrshp <- flickrshp_tags
+rm(flickrshp_tags)
 
 ### Preliminary processing ---
 #drop photos pre 2000 and from 2018 or later
@@ -70,7 +72,7 @@ for(i in seq_along(regionlist)){
     #extract googleVision tags for each photo in subset
     for (i in 1:nrow(flickr_urls)){
      if(is.na(google[i])){
-        google[[1]][i] <- try(list(getGoogleVisionResponse(imagePath=gsub("https","http",flickr_urls[i,"url_m"]), feature = 'LABEL_DETECTION', numResults=20)))
+        google[[i]][1] <- try(list(getGoogleVisionResponse(imagePath=gsub("https","http",flickr_urls[i,"url_m"]), feature = 'LABEL_DETECTION', numResults=20)))
       }
       #save the file every 1000 photos
       if(i%%1000==0) save(google,file=sprintf("intermediate/%s/google_%s.Rdata", curregname, countertext))

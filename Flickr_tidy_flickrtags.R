@@ -16,7 +16,7 @@ options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
 
 ### Load data ----
-flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
+flickrshp <- read_sf("input/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 write.csv(data.frame(flickrshp$tags, flickrshp$title, flickrshp$url_m), "input/flickr_tags_and_titles_all_photos.csv", fileEncoding="UTF-8")
 
 length(unique(flickrshp$title))
