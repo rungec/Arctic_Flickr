@@ -8,41 +8,38 @@ wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
 setwd(wd)
 
 ### Setup ----
-library(sp)
-library(rgdal)
-library(spatstat)
+library(sf)
+library(ggplot2)
 
-options(stringsAsFactors = FALSE)
+options(stringsAsFactors = TRUE) #otherwise stat_density_2d throws an error
 #options(tibble.width = Inf) #print all columns
 
 #load country borders shp
-#worldmap <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/", "CountryBorders_60degreesN_lambert")
+#worldmap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBorders_60degreesN_lambert.shp")
 #load bounding box shp
-boundary60N <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN", "60degreesN")
+boundary60N <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN.shp")
 #load flickr points as .shp
-flickrshp <- readOGR("D:/Box Sync/Arctic/Data/Flickr", "Flickr_Artic_60N_byregion_laea_icelandupdate")
+flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 
 ### Preliminary processing ----
-#coerce study area to owin object
-studywindow <- as.owin(boundary60N)
-#coerce photo points to ppp object and pass to study area window
-flickrppp <- as.ppp(flickrshp, W=studywindow, marks=Year1@data$MyVar)
-#with data
-#photos <- ppp(coordinates(flickrshp)[,1], coordinates(flickrshp)[,2] W=studywindow, marks=Year1@data$MyVar)
 
-#alternately with bounding box
-bb <- bounding.box(flickrppp)
-flickrppp <- ppp(flickrppp, W=bb)
 
 ### Main processing ----
+testdat <- flickrshp[sample(1:nrow(flickrshp), 1000),]
+coords <- as.data.frame(st_coordinates(testdat))
 
-sigmas <- c(0.25, 0.5, 0.75, 1)
+testplot <- ggplot(coords, aes(x=X, y=Y)) +
+            geom_point() +
+            #stat_density_2d(aes(x=coords[,1], y=coords[,2], fill = ..level..), geom = "polygon") +
+            stat_density_2d(aes(fill = ..level..), geom = "polygon", bins=5, n=c(200, 100), h=c) +
+            theme_bw()
 
-densgrids <- lapply(sigmas, function(x){
-  dens <- density(flickrppp, sigma=x, xy=crds)
-  spatgrid <- as(dens, "SpatialGridDataFrame")
-  return(spatgrid)
-})
-names(densgrids) <- paste0("density_s", sigmas)
-
-plot(densgrids)
+testplot <- ggplot(testdat) +
+            geom_sf() +
+            #stat_density_2d(aes(x=coords[,1], y=coords[,2], fill = ..level..), geom = "polygon") +
+            stat_density_2d(aes(x=coords[,2], y=coords[,1], fill = ..level..), geom = "polygon") +
+            theme_bw()
+  
+ coords <- st_coordinates(testdat)
+  
+  
