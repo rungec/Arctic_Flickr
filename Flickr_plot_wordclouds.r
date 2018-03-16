@@ -2,38 +2,53 @@
 # follows on from Flickr_tidy_flickrtags.r & Flickr_googlecloudvison_labels.r
 
 
-wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis"
+wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
 setwd(wd)
 
 ### Setup ----
 library(wordcloud)
+library(extrafont)
+#font_import()
+#loadfonts(device="win")
 
 options(stringsAsFactors = FALSE)
 #options(tibble.width = Inf) #print all columns
 
+nphotos = 2154209  
 
-
+##############################
 ### Make word clouds ----
 #load flickrshp_tag
 #(file="input/Flickr_Artic_60N_plus_flickr_labels.Rdata")
-tagfreq <- read.csv("output/frequency_of_flickr_tag_words.csv", encoding="UTF-8", header=TRUE)
-titlefreq <- read.csv("output/frequency_of_flickr_title_words.csv", encoding="UTF-8", header=TRUE)
+tagfreq <- read.csv("tag_analysis/output/frequency_of_flickr_tag_words.csv", encoding="UTF-8", header=TRUE)
+titlefreq <- read.csv("tag_analysis/output/frequency_of_flickr_title_words.csv", encoding="UTF-8", header=TRUE)
 
-wordcloud(words=tagfreq$x, freq=tagfreq$freq, max.words=200, random.order=FALSE, scale=c(3,0.5))
-wordcloud(words=tagfreq$x, freq=tagfreq$freq, min.freq=3000, random.order=FALSE)
-wordcloud(words=tagfreq$x, freq=tagfreq$freq, min.freq=2000, scale=c(3,0.5), random.order=FALSE)
+#set up plotfun
+wordplotfun <- function(dat, outname, ...){
+    png(filename = sprintf("figures/Wordcloud_%s.png", outname), width=960, height=960, type='windows', antialias = "cleartype")
+    wordcloud(words=dat$x, freq=dat$freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman", ...)
+    dev.off()
+} 
 
-wordcloud(words=titlefreq$x, freq=titlefreq$freq, max.words=200, random.order=FALSE, scale=c(3,0.5))
-wordcloud(words=titlefreq$x, freq=titlefreq$freq, min.freq=3000, random.order=FALSE)
-wordcloud(words=titlefreq$x, freq=titlefreq$freq, min.freq=2000, scale=c(3,0.5), random.order=FALSE)
+#Plot tag wordclouds
+wordplotfun(tagfreq, "flickrtags_top200", max.words=200)
+wordplotfun(tagfreq, "flickrtags_usedin1perc_ofphotos", min.freq=0.01*nphotos)
+wordplotfun(tagfreq, "flickrtags_usedin2perc_ofphotos", min.freq=0.02*nphotos)
 
+#Plot title wordclouds
+wordplotfun(titlefreq, "flickrtitlewords_top200", max.words=200)
+wordplotfun(titlefreq, "flickrtitlewords_usedin1perc_ofphotos", min.freq=0.01*nphotos)
+wordplotfun(titlefreq, "flickrtitlewords_usedin2perc_ofphotos", min.freq=0.02*nphotos)
+
+
+##############################
 ### Summarise frequencies ----
 #bins=c(0,1,10,100, 1000, 2000, 3000, max(titlefreq$freq))
 #hist(titlefreq$freq, breaks=bins, xlab="Tag frequency", ylab="Frequency", freq=TRUE, xlim=c(0,4000))
 #write a fun to print summary to text file
 summaryfun <- function(dat, outfile){
-  sink(sprintf("output/Summary_of_%s_frequency.txt", outfile))
-  cat(paste0("For 2154209 photos, there were ", nrow(dat), " unique ", outfile, "s", "\n"))
+  sink(sprintf("tables/Summary_of_%s_frequency.txt", outfile))
+  cat(paste0("For ", nphotos, " photos, there were ", nrow(dat), " unique ", outfile, "s", "\n"))
    cat(paste0(nrow(dat[dat$freq==1,]), " tags used only once", "\n"))
    cat(paste0(nrow(dat[dat$freq>=100,]), " tags used at least 100 times", "\n"))
    cat(paste0(nrow(dat[dat$freq>=500,]), " tags used at least 500 times", "\n"))
@@ -41,12 +56,16 @@ summaryfun <- function(dat, outfile){
    cat(paste0(nrow(dat[dat$freq>=2000,]), " tags used at least 2000 times", "\n"))
    cat(paste0(nrow(dat[dat$freq>=3000,]), " tags used at least 3000 times", "\n"))
    cat(paste0(dat$x[which(dat$freq==max(dat$freq))], " most used word used ", max(dat$freq), " times", "\n", "\n"))
-   top10perc <- dat[which(dat$freq>={0.1*nrow(dat)}),]
-   cat(paste0(nrow(top10perc), " words used to tag at least 10% of photos", "\n"))
-   cat("words are: ", "\n", top10perc$x[rev(order(top10perc$freq))], "\n", "\n")
-   top5perc <- dat[which(dat$freq>={0.05*nrow(dat)}),]
-   cat(paste0(nrow(top5perc), " words used to tag at least 5% of photos", "\n"))
-   cat("words are: ", "\n", top5perc$x[rev(order(top5perc$freq))], "\n", "\n")
+   top1perc <- dat[which(dat$freq>={0.01*nphotos}),]
+   cat(paste0(nrow(top1perc), " words used to tag at least 1% of photos", "\n"))
+   cat("words are: ", "\n", top1perc$x[rev(order(top1perc$freq))], "\n", "\n")
+   top2perc <- dat[which(dat$freq>={0.02*nphotos}),]
+   cat(paste0(nrow(top2perc), " words used to tag at least 2% of photos", "\n"))
+   cat("words are: ", "\n", top2perc$x[rev(order(top2perc$freq))], "\n", "\n")
+    ordereddat <- dat[rev(order(dat$freq)),]
+   cat(paste0("The top 50 of the most frequently used words are:", "\n"))
+   cat(ordereddat$x[1:50], "\n", "\n")
+
  sink()   
 }
 
