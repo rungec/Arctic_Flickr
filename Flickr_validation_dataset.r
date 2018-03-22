@@ -2,7 +2,7 @@
 # Preceded by Flickr_tidy_flickrtags.r runs concurrently with Flickr_googlecloudvision_label.r
 # photos are selected from hotspots outside developed areas
 
-wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis"
+wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis"
 setwd(wd)
 
 ### set libraries
@@ -15,6 +15,7 @@ library(tidyverse)
 flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 #lulc <- raster()
 #lulc_lookup <- 
+urbanshp <- read_sf("D:/Box Sync/Arctic/Data/Landuse/Urban_areas/ne_10m_populated_places/ne_10m_populated_places_Arctic60N_laea_10kmbuffer_popnmorethan50k.shp")
 
 
 ### prelim processing
@@ -28,6 +29,12 @@ flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_l
   #flickrshp$lulc_desc <- lulc_lookup[flickrshp$lulc_code]
   # Save the full dataset with lulc added
   #save(flickrshp, file="input/Flickr_Artic_60N_plus_lulc.Rdata")
+
+# drop photos from urban areas
+# Urban areas are defined as a 10km radius around any the gps coordinates of any population centre of 50 000 or more
+# lat and lon of urban centers came from http://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/
+flickrshp_nourban <- st_difference(flickrshp, urbanshp)
+
 
 ### main processing
 # Pull out only the rows not classes as developed
@@ -46,7 +53,7 @@ regionlist <- list(IcelandGreenland=c("Iceland", "Greenland"),
 flickr_l <- lapply(seq_along(regionlist), function(i){
   curregion <- regionlist[i] 
   #extract rows for that region, drop unwanted cols
-  flickrshp_sub <- flickrshp[flickrshp$region %in% curregion[[1]], c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region")]
+  flickrshp_sub <- flickrshp_nourban[flickrshp_nourban$region %in% curregion[[1]], c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region")]
   flickrshp_sample <- flickrshp_sub[sample(nrow(flickrshp_sub), 1000), ]
 })
 
