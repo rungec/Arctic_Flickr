@@ -11,9 +11,10 @@ library(tidyverse)
 library(RoogleVision) #for getGoogleVision
 library(jsonlite) # to import credentials
 
- wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis"
- #wd <- "/home/cru016@ad.uit.no/Documents/tag_analysis"
+ #wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis"
+ wd <- "/home/cru016@ad.uit.no/Documents/tag_analysis"
  setwd(wd)
+wd2 <- "/data/Claire"
  
  #set list of regions to process
  regionlist <- list(IcelandGreenland=c("Iceland", "Greenland"),
@@ -35,18 +36,21 @@ options("googleAuthR.scopes.selected" = c("https://www.googleapis.com/auth/cloud
 googleAuthR::gar_auth()
 
 ### Load data ----
-#flickrshp <- read_sf("input/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
-load(file="input/Flickr_Artic_60N_plus_flickr_labels.Rdata") #includes the flickr tags
-flickrshp <- flickrshp_tags
-rm(flickrshp_tags)
+flickrshp <- read_sf("input/Flickr_Artic_60N_byregion_laea_icelandupdate_urban.shp")
+#load(file="input/Flickr_Artic_60N_plus_flickr_labels.Rdata") #includes the flickr tags
+#flickrshp <- flickrshp_tags
+#rm(flickrshp_tags)
 
 ### Preliminary processing ---
 #drop photos pre 2000 and from 2018 or later
 flickrshp <- flickrshp[flickrshp$year<2018 & flickrshp$year>2000, ]
 
+setwd(wd2)
+
 ### Main processing ----
 for(i in seq_along(regionlist)){
  curregion <- regionlist[i] 
+curregname <- names(curregion)
  flickrshp_sub <- flickrshp[flickrshp$region %in% curregion[[1]], ]
   #set up splits 
   d <- 1:nrow(flickrshp_sub)
@@ -55,7 +59,7 @@ for(i in seq_along(regionlist)){
 
   #loop over splits
   for(currsplit in 1:length(splits)){
-    countertext = paste(names(curregion), formatC(currsplit, width = 4, format = "d", flag = "0"), sep="_") #Pad with zero
+    countertext = paste(curregname, formatC(currsplit, width = 4, format = "d", flag = "0"), sep="_") #Pad with zero
     print(paste("Starting", countertext, Sys.time(), sep=" "))
     
     #pull out the urls for this split
