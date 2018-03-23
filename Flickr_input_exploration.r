@@ -124,6 +124,7 @@ ggsave("figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9
 all.sf.dat <- st_set_geometry(all.sf, NULL)  
 names(all.sf)
 length(unique(all.sf.dat$owner)) 
+all.sf.dat <- all.sf.dat[all.sf.dat$year<2019 & all.sf.dat$year>1997,]
 #How many photos per user in each region
 usercounts <- all.sf.dat %>% group_by(region) %>% count(owner) %>% summarise(Av_photos_per_user=mean(n), Med_photos_per_user=median(n))
 
@@ -135,25 +136,61 @@ userDF <- merge(usercounts, Num_users_per_region)
 names(userDF)[4] <- "n_users"
 write.csv(userDF, "tables/Flickr_60N_users_byregion.csv")
 
+#number of users per region per year
+Num_users_per_regionyr<- all.sf.dat %>% group_by(region, year, owner) %>% tally() %>% count() %>% as.data.frame()
+Num_users_per_regionyr$year <- as.numeric(Num_users_per_regionyr$year)
+write.csv(Num_users_per_regionyr, "tables/Flickr_60N_users_byregion_year.csv")
+
+p <- ggplot(Num_users_per_regionyr, aes(x = year, y = nn, colour=as.factor(region), linetype=as.factor(region))) + 
+  geom_line(size=1 ) + 
+  scale_color_manual(name="Region", values=c(wes_palette(6, name="Zissou", type="continuous"), wes_palette(6, name="Zissou", type="continuous"))) +
+  scale_linetype_manual(name="Region", values=c(rep("solid", 6), rep("dashed", 6)))+
+  geom_hline(yintercept=0, size=0.4, color="black") +
+  labs(title="Flickr use across time",
+       subtitle="By region",
+       x="Year",
+       y="Number of users") +
+  xlim(2000, 2017) +
+  theme(legend.position = c(0.12, 0.75)) +
+  theme_minimal(base_size=14) #to change font add base_family="Hind" 
+ggsave("figures/Flickr_60N_numberofusers_byregion_year.png", p, scale=0.5, width=18, height=14)
+
+p <- ggplot(Num_users_per_regionyr, aes(x = year, y = nn, colour=as.factor(region), linetype=as.factor(region))) + 
+  geom_line(size=1, show.legend = FALSE ) + 
+  scale_color_manual(name="Region", values=c(wes_palette(6, name="Zissou", type="continuous"), wes_palette(6, name="Zissou", type="continuous"))) +
+  scale_linetype_manual(name="Region", values=c(rep("solid", 12)))+
+  facet_wrap(~ region, scales = 'free_y', ncol = 2) +
+  geom_hline(yintercept=0, size=0.4, color="black") +
+  labs(title="Flickr use across time",
+       subtitle="By region",
+       x="Year",
+       y="Number of users") +
+  xlim(2000, 2017) +
+  theme(legend.position = c(0.12, 0.75)) +
+  theme_minimal(base_size=12) #to change font add base_family="Hind" 
+#ggsave("figures/Flickr_60N_numberofusers_byregion_year.png", p)
+ggsave("figures/Flickr_60N_numberofusers_byregion_year_facet.png", p, width=14, height=21, scale=0.4)
+
+
 #How many photos does each user contribute, overall
 usercounts_overall <- all.sf.dat %>% group_by(owner) %>% tally() %>% count(n)
 names(usercounts_overall) <- c("num_photos_contributed", "num_users")
 write.csv(usercounts_overall, "tables/Number_of_photos_contributed_by_users.csv", row.names = FALSE)
 
-png("figures/Histogram_of_photos_per_user.png")
-ggplot(usercounts_overall, aes(x=num_photos_contributed, y=num_users)) + 
+
+p <- ggplot(usercounts_overall, aes(x=num_photos_contributed, y=num_users)) + 
   geom_line() +
   xlim(0,1000) +
-  xlab("Number of photos contributed")+ylab("User frequency")+
-  theme_minimal()
-dev.off()
-png("figures/Histogram_of_photos_per_user_zoom.png")
-ggplot(usercounts_overall, aes(x=num_photos_contributed, y=num_users)) + 
+  xlab("Number of photos contributed")+ylab("Number of users")+
+  theme_minimal(base_size=16)
+ggsave("figures/Histogram_of_photos_per_user.png", p, scale=0.4)
+
+p <- ggplot(usercounts_overall, aes(x=num_photos_contributed, y=num_users)) + 
   geom_line() +
   xlim(0,250) + ylim(0,1000)+
-  xlab("Number of photos contributed")+ylab("User frequency")+
-  theme_minimal()
-dev.off()
+  xlab("Number of photos contributed")+ylab("Number of users")+
+  theme_minimal(base_size=16)
+ggsave("figures/Histogram_of_photos_per_user_zoom.png", p,  scale=0.4)
 
 
 ############################
