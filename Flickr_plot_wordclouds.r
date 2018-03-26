@@ -8,6 +8,7 @@ setwd(wd)
 ### Setup ----
 library(wordcloud)
 library(extrafont)
+library(readxl)
 #font_import()
 #loadfonts(device="win")
 
@@ -71,3 +72,28 @@ summaryfun <- function(dat, outfile){
 
 summaryfun(tagfreq, "flickrtag")
 summaryfun(titlefreq, "flickrtitle")
+
+
+#### Make wordclouds of tidied tags ----
+# manually tidied title and tag words, removing disjointed letters (e.g. p), stopwords (last), and photo info (geotag, instagram, canon etc)
+# then I manually assigned words as location words (eg finland, iceland) and summed all the similar words (iceland, islande, ijsland, icelandic)
+# saved as .xlsx
+
+top200 <- read_excel("tag_analysis/output/Flickr_tag_and_titlewords_tidied.xlsx", sheet="Top200words")
+top50local <- read_excel("tag_analysis/output/Flickr_tag_and_titlewords_tidied.xlsx", sheet="Top50locations_noduplicates")
+
+#set up plotfun
+wordplotfun <- function(words, freq, outname, ...){
+  png(filename = sprintf("figures/Wordcloud_%s.png", outname), width=960, height=960, type='windows', antialias = "cleartype")
+  wordcloud(words=words, freq=freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman", ...)
+  dev.off()
+} 
+
+#plot wordclouds
+wordplotfun(top200$Flickr_tag_words, top200$Freq_tag, "flickrtags_top100_tidied", max.words=100, rot.per=0)
+wordplotfun(top200$Flickr_title_words, top200$Freq_title, "flickrtitles_top100_tidied", max.words=100, rot.per=0)
+
+wordplotfun(top50local$Flickr_tags, top50local$Freq_tags, "flickrtags_top40locations_tidied", max.words=40, rot.per=0)
+wordplotfun(top50local$Flickr_titles[1:40], top50local$Freq_titles[1:40], "flickrtitles_top40locations_tidied", max.words=40, rot.per=0)
+
+
