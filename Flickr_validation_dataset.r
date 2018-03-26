@@ -37,7 +37,7 @@ urbanshp$InCity <- 1
 flickrshp <- st_join(flickrshp, urbanshp)
 st_write(flickrshp, "D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban", driver="ESRI Shapefile")
 
-### main processing
+#### Make a list of photos for validation ----
 # Pull out only the rows not classes as developed
 #flickr_nodev <- flickrshp[!which(flickrshp$lulc_code %in% c()), ]
 
@@ -64,4 +64,26 @@ st_write(flickr_val, "validation/Flickr_Artic_60N_validationdata.shp")
 #Save as .csv
 flickr_val_df <- flickr_val[] %>% st_set_geometry(NULL) %>% data.frame() 
 write.csv(flickr_val_df, "validation/Flickr_Artic_60N_validationdata.csv", fileEncoding = "UTF-8")
+
+
+#### Make a list of the common keywords ----
+
+wd <- "D:/temp/gvisontemp"
+setwd(wd)
+filelist <- list.files(wd, ".Rdata")
+
+allgoogle <- lapply(filelist, function(currfile){
+  desclist <- c()
+  google2 <- get(load(currfile))
+  for(x in 1:length(google2)){ 
+    desc <- try(google2[[x]][[1]]$description) #some photos have no url, so threw google errors, hence try().
+    desclist <- append(desclist, desc)
+  }
+  return(desclist)  
+})
+
+uniquewords <- allgoogle %>% unlist() %>% unique() %>% length()
+wordfreq <- allgoogle %>% unlist() %>% table() 
+write.csv(wordfreq, "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/validation/Keywords_for_validation.csv")
+3000*59
 
