@@ -28,6 +28,7 @@ wd2 <- "/data/Claire"
 
 ### Set Google API authentication and vision API client ----
 creds = fromJSON(paste0(dirname(wd), '/login_cloud/client_oauth_flickr_labels.json'))
+creds = fromJSON(paste0(wd, '/login_cloud/client_oauth_flickr_labels.json'))
 # options("googleAuthR.client_id" = "xxx.apps.googleusercontent.com")
 # options("googleAuthR.client_secret" = "")
 options("googleAuthR.client_id" = creds$installed$client_id)
@@ -77,7 +78,7 @@ curregname <- names(curregion)
     for (i in 1:nrow(flickr_urls)){
      if(is.na(google[i])){
         google[[i]][1] <- try(list(getGoogleVisionResponse(imagePath=gsub("https","http",flickr_urls[i,"url_m"]), feature = 'LABEL_DETECTION', numResults=20)))
-      }
+     }
       #save the file every 1000 photos
       if(i%%1000==0) save(google,file=sprintf("intermediate/%s/google_%s.Rdata", curregname, countertext))
     }
@@ -129,23 +130,35 @@ for(i in seq_along(regionlist)){
       save(flickrshp_sub, file=sprintf("output/byregion/Flickr_Artic_60N_plus_flickr_and_google_labels_%s.Rdata", curregname))
 
 
-  #make a table of the top 10 google tags  
+  #make a table of the top 10 google tags & their scores 
   top10tags <- lapply(allgoogle, function(x) {
                             tags <- rep(NA, 10)
-                            if(nrow(x)>=10) {
-                              tags <- x$description[1:10]
+                            if(nrow(x[[1]])>=10) {
+                              tags <- x[[1]]$description[1:10]
                             } else {
-                              tags[1:nrow(x)] <- x$description[1:nrow(x)]
+                              tags[1:nrow(x[[1]])] <- x[[1]]$description[1:nrow(x[[1]])]
                             }
                          return(tags)
                       }) #top 10 tags
   top10tags <- do.call(rbind, top10tags)
+  top10scores <- lapply(allgoogle, function(x) {
+                            tags <- rep(NA, 10)
+                            if(nrow(x[[1]])>=10) {
+                              tags <- x[[1]]$score[1:10]
+                            } else {
+                              tags[1:nrow(x[[1]])] <- x[[1]]$score[1:nrow(x[[1]])]
+                            }
+                         return(tags)
+                      }) #top 10 tags
+  top10scores <- do.call(rbind, top10scores)
+  top10tags <- do.call(rbind, top10tags)
   colnames(top10tags) <- paste0(rep(c("googletag"), each=10), 1:10)
+  colnames(top10scores) <- paste0(rep(c("googlescore"), each=10), 1:10)
     write.csv(top10tags, sprintf("output/byregion/Flickr_Artic_60N_plus_google_labels_%s.csv", curregname), row.names = TRUE)
 
   #add the top 10 google tags as columns in the .shp, then save a .shp for each region
   google_summary <- within(flickrshp_sub, rm(flickr_tags, title_tags, google))
-  google_summary <- cbind(google_summary, top10tags)
+  google_summary <- cbind(google_summary, top10tags, top10scores)
 
   #function to save as shp
   st_write(google_summary, sprintf("output/byregion/Flickr_Artic_60N_plus_google_labels_%s.shp", curregname))
