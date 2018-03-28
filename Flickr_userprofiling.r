@@ -16,7 +16,7 @@ library(flickRgeotag)
 api_key = '790ae098b7062ef9d5f4071d0933f23c'
 secret = '02ee3e83c5cac3fe'
 
-load("input/Flickr_Artic_60N_plus_flickr_labels.Rdata")
+load("tag_analysis/input/Flickr_Artic_60N_plus_flickr_labels.Rdata")
 flickrshp <- flickrshp_tags
 
 ### 1. Are super users different
@@ -28,7 +28,9 @@ superusers <- userfreq[userfreq$n >= 473, ] #766 superusers
 averageusers <- userfreq[userfreq$n < 473, ] #the rest
 
 
-
+#do they go further?
+#do they use different flickr tags?
+#do they photograph different objects (google vision)?
 
 
 ### 2. How many tourists ----
