@@ -45,26 +45,51 @@ write.csv(userinfo, "D:/Box Sync/Arctic/Data/Flickr/Flickr_user_info.csv", row.n
 # 2c. What prop tourists
 
 
-### 3. How far do users travel
-
-#how long between their first and last photo
-ownerdates <- flickrshp[flickrshp$owner==userfreq$owner[4],"datetkn"]
-firstphoto <- min(ownerdates$datetkn)
-lastphoto  <- max(ownerdates$datetkn)
-  as.numeric(difftime(lastphoto, firstphoto, units="days"))
-
-#what is the centroid of their photos
-centroid <- st_centroid(userfreq[4, ]) 
-#how far did they travel from this centroid
-distances <- userfreq[4, ] %>% st_cast("POINT") %>% st_distance(centroid)
-#furtherest & average distance travelled (in km)
-maxdist <- max(distances)/1000
-avgdist <- mean(distances)/1000
-
-#distance between their centroid and their stated location??
+### 3. Stats on user travel distance and travel times
 
 
 
-plot(userfreq[4,"n"])
-plot(centroid, col="red", add=TRUE)
+lapply(allowners, function(currowner){
+  ownerstats <- c()
+ currphotos <- flickrshp[flickrshp$owner==currowner, ]
+  #how long between photos
+  totaltrip <- as.numeric(difftime(max(currphotos$datetkn), min(currphotos$datetkn), units="days"))
+  #what is the centroid of their photos
+  centroid <- st_centroid(currphotos) 
+  #furtherest & average distance travelled (in km) from this centroid
+  distances <- currphotos %>% st_distance(centroid)
+  maxdist <- max(distances)/1000
+  avgdist <- mean(distances)/1000
+  
+  #distance traveled along path from first to last photo
+  bydate <- order(currphotos$datetkn) #order photos by date
+  start <- bydate[1:length(bydate)-1]
+  end <- bydate[2:length(bydate)]
+  dists <- as.integer(mapply(function(a,b) {st_distance(user4[a, ], user4[b, ])}, a = start, b = end))
+  timeV <- currphotos$datetkn
+  timebtwphotos <- mapply(function(a,b) {as.numeric(difftime(timeV[b], timeV[a], units="hours"))}, a = start, b = end)
+  
+  ownerDF <- data.frame(dists, timebtwphotos)
+  #how many trips did they take, defining a trip as any photos separated by 14 days or more
+  counter=1
+  ownerDF$tripid <- NA
+  for(i in 1:nrow(ownerDF)){
+        if(ownerDF$timebtwphotos[i] >= 14*24) counter=counter+1
+        ownerDF$tripid[i] <- counter
+  }
+  #stats for each trip
+  #total number of trips
+  numtrips <- max(ownerDF$tripid)
+  #total distance travelled each trip
+  tripstats <- ownerDF %>% group_by(tripid) %>% filter(row_number()!=1) %>% #drop the first row
+                                         summarise(tripdist_km=sum(dists)/1000,
+                                                      triplength_hrs=sum(timebtwphotos),
+                                                      triplength_days=round(sum(timebtwphotos)/24, 2))
+  
+  #where is the centroid of each trip, and how far is it from the total centroid?
+  
+  ownerstats <- list(totaltrip_days, centroid, maxdistfromcentroid_km, avgdistfromcentroid_km, numtrips, tripstats)
+
+})
+
 
