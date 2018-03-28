@@ -11,20 +11,26 @@ library(tidyverse)
 library(RoogleVision) #for getGoogleVision
 library(jsonlite) # to import credentials
 
- #wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis"
- wd <- "/home/cru016@ad.uit.no/Documents/tag_analysis"
- setwd(wd)
+#wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis"
+wd <- "/home/cru016@ad.uit.no/Documents/tag_analysis"
+setwd(wd)
 wd2 <- "/data/Claire"
  
- #set list of regions to process
- regionlist <- list(IcelandGreenland=c("Iceland", "Greenland"),
+#set list of regions to process
+regionlist <- list(IcelandGreenland=c("Iceland", "Greenland"),
                     NorthAmerica = c("Alaska", "Canada"), 
                     Scandinavia=c("Norway", "Sweden"), 
                     Finland=c("Finland", "Aland"), 
                     Russia=c("Russia"), 
                     Marine=c("Marine"), 
                     OtherIslands =c("Faroe.Islands", "United.Kingdom"))
- #try(lapply(names(regionlist), function(i) dir.create(paste0(getwd(), "/intermediate/", i)))) #create dirs
+#try(lapply(names(regionlist), function(i) dir.create(paste0(getwd(), "/intermediate/", i))))
+
+#create dirs
+lapply(names(regionlist), function(i) {
+newdir <- paste0("intermediate/", i)
+try(dir.create(newdir))
+})
 
 ### Set Google API authentication and vision API client ----
 creds = fromJSON(paste0(dirname(wd), '/login_cloud/client_oauth_flickr_labels.json'))
@@ -48,6 +54,7 @@ flickrshp <- flickrshp[flickrshp$year<2018 & flickrshp$year>2000, ]
 
 setwd(wd2)
 
+
 ### Main processing ----
 for(i in seq_along(regionlist)){
  curregion <- regionlist[i] 
@@ -57,9 +64,15 @@ curregname <- names(curregion)
   d <- 1:nrow(flickrshp_sub)
   splits <- split(d, ceiling(seq_along(d)/3000))
   rm(d)
-
+  #check if any files exist
+  filelist <- list.files(paste0("intermediate/", names(regionlist[i])), ".Rdata")
+  
   #loop over splits
   for(currsplit in 1:length(splits)){
+  	
+	#check if any files exist and if they do then start from the last one
+	if(length(filelist)> currsplit) next 
+	
     countertext = paste(curregname, formatC(currsplit, width = 4, format = "d", flag = "0"), sep="_") #Pad with zero
     print(paste("Starting", countertext, Sys.time(), sep=" "))
     
@@ -88,6 +101,7 @@ curregname <- names(curregion)
   rm(splits)
   print(paste0("FINISHED GOOGLE ", names(curregion), Sys.time()))
 }
+
 ### Post processing ---
 
 ## Combine data ----
