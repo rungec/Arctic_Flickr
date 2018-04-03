@@ -18,7 +18,7 @@ options(stringsAsFactors = TRUE) #otherwise stat_density_2d throws an error
 #options(tibble.width = Inf) #print all columns
 
 #load country borders shp
-#worldmap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBordersESRI_60degreesN_lambert.shp")
+worldmap <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBordersESRI_60degreesN_lambert.shp")
 #load bounding box shp
 boundary60N <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN", "60degreesN")
 #load flickr points as .shp
@@ -33,27 +33,35 @@ rcrs <- crs(boundary60N)
 
 ##########################
 ### Main processing ----
+
 #rasterize points
-rastFun <- function(curres, currphotos, currfile){
+rastFun <- function(data, curres, currphotos, currfile){
   rasttemplate <- raster(xmn=-3335000, xmx=3335000, ymn=-3335000, ymx=3335000, res=curres, crs=rcrs)
-  rast60N <- rasterize(boundary60N, rasttemplate, filename=sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
+  if(file.exists(sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))==FALSE){ 
+    rast60N <- rasterize(boundary60N, rasttemplate, filename=sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
+  } else {
+    rast60N <- raster(sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
+  }
   rast60N[rast60N==1] <- 0
-  densRast <- rasterize(flickrshp, rast60N, fun='count', field="id", update=TRUE, filename=sprintf("density_mapping/Flickr_%s_per%scell.tif", currphotos, currfile), overwrite=TRUE)
+  densRast <- rasterize(data, rast60N, fun='count', field="id", update=TRUE, filename=sprintf("density_mapping/Flickr_%s_per%scell.tif", currphotos, currfile), overwrite=TRUE)
 }
 
-rast5km <- rastFun(5000, "allphotos", "5km")
-rast10km <- rastFun(10000, "allphotos", "10km")
+rast5km <- rastFun(flickrshp, 5000, "allphotos", "5km")
+rast10km <- rastFun(flickrshp, 10000, "allphotos", "10km")
+
+#map photos from winter (Nov-Apr)
+flickrshp_winter <- flickrshp[flickrshp$month %in% c("11", "12", "01", "02", "03", "04"), ]
+rast10kmwinter <- rastFun(flickrshp_winter, 10000, "winterphotos", "10km")
+#map photos from summer (May-Oct)
+flickrshp_summer <- flickrshp[flickrshp$month %in% c("05", "06", "07", "08", "09", "10"),]
+rast10kmsummer <- rastFun(flickrshp_summer, 10000, "summerphotos", "10km")
 
 
 ##########################
 ### Plot rasters ----
 levelplot(densRast, contour=FALSE)
 
-
-
-
-
-
+#plotted in arcgis, simpler, more control
 
 
 ##########
