@@ -16,8 +16,14 @@ library(flickRgeotag)
 api_key = '790ae098b7062ef9d5f4071d0933f23c'
 secret = '02ee3e83c5cac3fe'
 
+
+flickrshp <- read_sf()
 load("tag_analysis/input/Flickr_Artic_60N_plus_flickr_labels.Rdata")
 flickrshp <- flickrshp_tags
+#drop the tags & titles
+flickrshp[["flickr_tags"]] <- NULL
+flickrshp[["title_tags"]] <- NULL
+rm(flickrshp_tags)
 
 ### 1. Are super users different
 # 1a. Determine superusers
@@ -49,47 +55,79 @@ write.csv(userinfo, "D:/Box Sync/Arctic/Data/Flickr/Flickr_user_info.csv", row.n
 
 
 
-lapply(allowners, function(currowner){
-  ownerstats <- c()
- currphotos <- flickrshp[flickrshp$owner==currowner, ]
-  #how long between photos
-  totaltrip <- as.numeric(difftime(max(currphotos$datetkn), min(currphotos$datetkn), units="days"))
-  #what is the centroid of their photos
-  centroid <- st_centroid(currphotos) 
-  #furtherest & average distance travelled (in km) from this centroid
-  distances <- currphotos %>% st_distance(centroid)
-  maxdist <- max(distances)/1000
-  avgdist <- mean(distances)/1000
-  
+allownerstats <- lapply(allowners, function(currowner){
+  currphotos <- flickrshp[flickrshp$owner==currowner, ]
+  #how long between first and last photos
+  totaltrip_days <- as.numeric(difftime(max(currphotos$datetkn), min(currphotos$datetkn), units="days"))
+
   #distance traveled along path from first to last photo
   bydate <- order(currphotos$datetkn) #order photos by date
-  start <- bydate[1:length(bydate)-1]
-  end <- bydate[2:length(bydate)]
-  dists <- as.integer(mapply(function(a,b) {st_distance(user4[a, ], user4[b, ])}, a = start, b = end))
-  timeV <- currphotos$datetkn
-  timebtwphotos <- mapply(function(a,b) {as.numeric(difftime(timeV[b], timeV[a], units="hours"))}, a = start, b = end)
+  start <- bydate[c(1, 1:length(bydate)-1)]
+  end <- bydate[1:length(bydate)]
+  dists <- as.integer(mapply(function(a,b) {st_distance(currphotos[a, ], currphotos[b, ])}, a = start, b = end))/1000
+  photodates <- currphotos$datetkn
+  timebtwphotos <- mapply(function(a,b) {as.numeric(difftime(photodates[b], photodates[a], units="days"))}, a = start, b = end)
   
-  ownerDF <- data.frame(dists, timebtwphotos)
+  #reorder photos by date, add distance per day & time between consecutive photos
+  currphotos <-  cbind(currphotos[bydate,], dists, timebtwphotos)
+  total_trip_dist <- sum(currphotos$dists)
   #how many trips did they take, defining a trip as any photos separated by 14 days or more
   counter=1
-  ownerDF$tripid <- NA
-  for(i in 1:nrow(ownerDF)){
-        if(ownerDF$timebtwphotos[i] >= 14*24) counter=counter+1
-        ownerDF$tripid[i] <- counter
+  currphotos$tripid <- NA
+  for(i in 1:nrow(currphotos)){
+        if(currphotos$timebtwphotos[i] >= 14) counter=counter+1 
+        currphotos$tripid[i] <- counter
   }
   #stats for each trip
   #total number of trips
-  numtrips <- max(ownerDF$tripid)
+  numtrips <- max(currphotos$tripid)
   #total distance travelled each trip
-  tripstats <- ownerDF %>% group_by(tripid) %>% filter(row_number()!=1) %>% #drop the first row
-                                         summarise(tripdist_km=sum(dists)/1000,
-                                                      triplength_hrs=sum(timebtwphotos),
-                                                      triplength_days=round(sum(timebtwphotos)/24, 2))
+  tripstats <- currphotos %>% st_set_geometry(NULL) %>% group_by(tripid) %>% 
+                                         summarise(tripdist_km=sum(dists),
+                                                   triplength_days=sum(timebtwphotos)) %>%
+                                        as.list()
+  #average and median distance per day, excluding days with no photos
+  #tripstats2 <- currphotos %>% st_set_geometry(NULL) %>%  filter(row_number()!=1) %>%  #drop the first row
+                         #      group_by(datetkn) %>% summarise(dailydist=sum(dists)) %>%
+                          #         summarise(tripdist_avperday_km=mean(dailydist),
+                           #                 tripdist_medianperday_km=median(dailydist))
   
+  #what is the centroid of the convex hull bounding their photos
+  user_centroid <- st_geometry(currphotos) %>% st_union() %>% st_convex_hull() %>% st_centroid()
+  
+  #furtherest & average distance travelled (in km) from this centroid
+  distances <- currphotos %>% st_distance(user_centroid)
+  maxdistfromcentroid_km <- max(distances)/1000
+  avgdistfromcentroid_km <- mean(distances)/1000
   #where is the centroid of each trip, and how far is it from the total centroid?
+  trip_centroids <- currphotos %>% group_by(tripid) %>%  
+                          st_union() %>% st_convex_hull() %>% st_centroid()
+  avgtripdist_from_centroid <- trip_centroids %>% st_distance(user_centroid)/1000
+  maxtripdist_from_centroid <- currphotos %>% group_by(tripid) %>% st_distance(trip_centroids)/1000 
   
-  ownerstats <- list(totaltrip_days, centroid, maxdistfromcentroid_km, avgdistfromcentroid_km, numtrips, tripstats)
-
+  #summary
+  #in this summary, the row where tripid=0 corresponds to the stats for all the photos for that user
+  # the average trip distance from centroid for tripid=0 is the distance between the photo and the centroid of the convex hull bounding the photos, 
+  # averaged across all photos
+  # the average trip distance from centroid for all other tripids is the distance between 
+  # the centroid of the convex hull bounding the trip photos and the centroid of the convex hull bounding all the photos.
+  # the max distance from centroid is in relation to the centroid of the all photos for that trip (all photos for the user if tripid=0)
+  overallstats <- data.frame(owner=currowner, tripid=0, 
+                             tripdist_km=total_trip_dist, 
+                             triplength_days=totaltrip_days, 
+                             maxtripdist_from_centroid=maxdistfromcentroid_km[[1]], 
+                             avgtripdist_from_centroid=avgdistfromcentroid_km[[1]], 
+                             numtrips=numtrips)
+  tripstats <- data.frame(owner=rep(currowner, numtrips), 
+                          tripstats, 
+                          maxtripdist_from_centroid, 
+                          avgtripdist_from_centroid, 
+                          numtrips=rep(NA, numtrips))
+  overallstats <- rbind(overallstats, tripstats)
+  ownercentroids <- rbind(st_coordinates(user_centroid), st_coordinates(trip_centroids))
+  overallstats <- cbind(overallstats, ownercentroids)
+  names(overallstats)[8:9] <- c("centroid_X", "centroid_Y")
+  return(overallstats)
 })
 
 
