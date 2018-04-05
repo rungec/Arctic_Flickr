@@ -11,13 +11,13 @@ setwd(wd)
 library(sf)
 library(tidyverse)
 # devtools::install_github("remi-daigle/flickRgeotag")
-library(flickRgeotag)
+#library(flickRgeotag)
 
-api_key = '790ae098b7062ef9d5f4071d0933f23c'
-secret = '02ee3e83c5cac3fe'
+#api_key = '790ae098b7062ef9d5f4071d0933f23c'
+#secret = '02ee3e83c5cac3fe'
 
 
-flickrshp <- read_sf()
+#flickrshp <- read_sf()
 load("tag_analysis/input/Flickr_Artic_60N_plus_flickr_labels.Rdata")
 flickrshp <- flickrshp_tags
 #drop the tags & titles
@@ -53,7 +53,6 @@ write.csv(userinfo, "D:/Box Sync/Arctic/Data/Flickr/Flickr_user_info.csv", row.n
 
 ### 3. Stats on user travel distance and travel times
 allowners <- unique(flickrshp$owner)
-currowner <- allowners[4]
 
 allownerstats <- lapply(allowners, function(currowner){
   currphotos <- flickrshp[flickrshp$owner==currowner, ]
@@ -112,7 +111,7 @@ allownerstats <- lapply(allowners, function(currowner){
    tripstats2 <- rbind(tripstats2, c(maxtripdist_from_centroid[[1]], avgtripdist_from_centroid[[1]], numphotos)) 
    trip_centroids <- rbind(trip_centroids, st_coordinates(currcentroid))
   }
-  names(tripstats2) <- c("maxtripdist_from_centroid", "avgtripdist_from_centroid")
+  names(tripstats2) <- c("maxtripdist_from_centroid", "avgtripdist_from_centroid", "numphotos")
   
   #summary
   #in this summary, the row where tripid=0 corresponds to the stats for all the photos for that user
@@ -137,6 +136,9 @@ allownerstats <- lapply(allowners, function(currowner){
   names(overallstats)[8:9] <- c("centroid_X", "centroid_Y")
   return(overallstats)
 })
+
+allownerstat$superuser <- 0
+allownerstats$superuser[allownerstats$owner %in% superusers$owner] <- 1
 
 write.csv(allownerstats, "tables/Flickr_user_trip_summary.csv", row.names = FALSE)
 
