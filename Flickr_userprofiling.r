@@ -52,8 +52,8 @@ write.csv(userinfo, "D:/Box Sync/Arctic/Data/Flickr/Flickr_user_info.csv", row.n
 
 
 ### 3. Stats on user travel distance and travel times
-
-
+allowners <- unique(flickrshp$owner)
+currowner <- allowners[4]
 
 allownerstats <- lapply(allowners, function(currowner){
   currphotos <- flickrshp[flickrshp$owner==currowner, ]
@@ -81,6 +81,7 @@ allownerstats <- lapply(allowners, function(currowner){
   #stats for each trip
   #total number of trips
   numtrips <- max(currphotos$tripid)
+  numphotos <- nrow(currphotos)
   #total distance travelled each trip
   tripstats <- currphotos %>% st_set_geometry(NULL) %>% group_by(tripid) %>% 
                                          summarise(tripdist_km=sum(dists),
@@ -100,10 +101,18 @@ allownerstats <- lapply(allowners, function(currowner){
   maxdistfromcentroid_km <- max(distances)/1000
   avgdistfromcentroid_km <- mean(distances)/1000
   #where is the centroid of each trip, and how far is it from the total centroid?
-  trip_centroids <- currphotos %>% group_by(tripid) %>%  
-                          st_union() %>% st_convex_hull() %>% st_centroid()
-  avgtripdist_from_centroid <- trip_centroids %>% st_distance(user_centroid)/1000
-  maxtripdist_from_centroid <- currphotos %>% group_by(tripid) %>% st_distance(trip_centroids)/1000 
+  tripstats2 <- data.frame()
+  trip_centroids <- c()
+  for(currid in unique(currphotos$tripid)){
+    currtrip <- currphotos[currphotos$tripid==currid,  ]
+    numphotos <- nrow(currtrip)
+    currcentroid <- currtrip %>% st_union() %>% st_convex_hull() %>% st_centroid()
+    avgtripdist_from_centroid <- currcentroid %>% st_distance(user_centroid)/1000
+    maxtripdist_from_centroid <- max(currtrip %>% st_distance(currcentroid)/1000)
+   tripstats2 <- rbind(tripstats2, c(maxtripdist_from_centroid[[1]], avgtripdist_from_centroid[[1]], numphotos)) 
+   trip_centroids <- rbind(trip_centroids, st_coordinates(currcentroid))
+  }
+  names(tripstats2) <- c("maxtripdist_from_centroid", "avgtripdist_from_centroid")
   
   #summary
   #in this summary, the row where tripid=0 corresponds to the stats for all the photos for that user
@@ -117,17 +126,17 @@ allownerstats <- lapply(allowners, function(currowner){
                              triplength_days=totaltrip_days, 
                              maxtripdist_from_centroid=maxdistfromcentroid_km[[1]], 
                              avgtripdist_from_centroid=avgdistfromcentroid_km[[1]], 
-                             numtrips=numtrips)
+                             numphotos=numphotos, numtrips=numtrips)
   tripstats <- data.frame(owner=rep(currowner, numtrips), 
                           tripstats, 
-                          maxtripdist_from_centroid, 
-                          avgtripdist_from_centroid, 
+                          tripstats2, 
                           numtrips=rep(NA, numtrips))
   overallstats <- rbind(overallstats, tripstats)
-  ownercentroids <- rbind(st_coordinates(user_centroid), st_coordinates(trip_centroids))
+  ownercentroids <- rbind(st_coordinates(user_centroid), trip_centroids)
   overallstats <- cbind(overallstats, ownercentroids)
   names(overallstats)[8:9] <- c("centroid_X", "centroid_Y")
   return(overallstats)
 })
 
+write.csv(allownerstats, "tables/Flickr_user_trip_summary.csv", row.names = FALSE)
 
