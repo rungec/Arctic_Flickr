@@ -31,9 +31,10 @@ flickrshp <- readOGR("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_l
 rcrs <- crs(boundary60N)
 
 #drop photos pre 2000 and from 2018 or later
-flickrshp <- flickrshp[flickrshp$year<2018 & flickrshp$year>2000, ]
+flickrshp <- flickrshp[flickrshp$year %in% as.factor(2001:2017), ]
 #drop rows missing urls
 flickrshp <- flickrshp[!is.na(flickrshp$url_m), ]
+flickrshp$year <- droplevels(flickrshp$year)
 
 ##########################
 ### Main processing ----
@@ -60,6 +61,8 @@ rast10kmwinter <- rastFun(flickrshp_winter, 10000, "winterphotos", "10km")
 flickrshp_summer <- flickrshp[flickrshp$month %in% c("05", "06", "07", "08", "09", "10"),]
 rast10kmsummer <- rastFun(flickrshp_summer, 10000, "summerphotos", "10km")
 
+length(flickrshp_winter)
+length(flickrshp_summer)
 
 ##########################
 ### Plot rasters ----
