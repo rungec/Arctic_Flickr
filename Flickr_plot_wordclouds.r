@@ -31,6 +31,7 @@ wordplotfun <- function(dat, outname, ...){
     dev.off()
 } 
 
+
 #Plot tag wordclouds
 wordplotfun(tagfreq, "flickrtags_top200", max.words=200)
 wordplotfun(tagfreq, "flickrtags_usedin1perc_ofphotos", min.freq=0.01*nphotos)
@@ -84,16 +85,17 @@ top50local <- read_excel("tag_analysis/output/Flickr_tag_and_titlewords_tidied_2
 
 #set up plotfun
 wordplotfun <- function(words, freq, outname, ...){
-  png(filename = sprintf("figures/Wordcloud_%s.png", outname), width=960, height=960, type='windows', antialias = "cleartype")
+  png(filename = sprintf("figures/Wordcloud_%s.png", outname), width=14, height=14, units="in", type='windows', antialias = "cleartype", res=600)
   wordcloud(words=words, freq=freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman", ...)
-  dev.off()
+  dev.off()  
 } 
 
 #plot wordclouds
+
 wordplotfun(top200$Flickr_tag_words, top200$Freq_tag, "flickrtags_top100_tidied_2001to2017_photoswithurls", max.words=100, rot.per=0)
 wordplotfun(top200$Flickr_title_words, top200$Freq_title, "flickrtitles_top100_tidied_2001to2017_photoswithurls", max.words=100, rot.per=0)
 
-wordplotfun(top50local$Flickr_tags, top50local$Freq_tags, "flickrtags_top40locations_tidied_2001to2017_photoswithurls", max.words=40, rot.per=0)
+wordplotfun(top50local$Flickr_tags[1:40], top50local$Freq_tags[1:40], "flickrtags_top40locations_tidied_2001to2017_photoswithurls", max.words=40, rot.per=0)
 wordplotfun(top50local$Flickr_titles[1:40], top50local$Freq_titles[1:40], "flickrtitles_top40locations_tidied_2001to2017_photoswithurls", max.words=40, rot.per=0)
 
 
