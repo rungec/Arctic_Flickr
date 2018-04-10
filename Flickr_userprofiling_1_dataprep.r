@@ -27,11 +27,15 @@ rm(flickrshp_tags)
 
 ### 1. Are super users different
 # 1a. Determine superusers
-#we define a superuser as anyone contributing more than 473 photos 
+#we define a superuser as anyone contributing more than n=superusersplitval photos (where n>=superusersplitval accounts for 50% of all photos)
 #(this is the midpoint of the data - 50% of photos are contributed by people posting this many or more photos)
-userfreq <- flickrshp %>% group_by(owner) %>% tally() 
-superusers <- userfreq[userfreq$n >= 473, ] #766 superusers
-averageusers <- userfreq[userfreq$n < 473, ] #the rest
+userfreq <- flickrshp %>% group_by(owner) %>% tally()
+userfreq <- userfreq[order(userfreq$n),] #in ascending order of freq
+superusersplitval <- userfreq$n[which.min(abs(cumsum(userfreq$n)-sum(userfreq$n)*0.5))] #which freq accounts for 50% of all photos
+print(superusersplitval)
+superusers <- userfreq[userfreq$n >= superusersplitval, ] #superusers
+averageusers <- userfreq[userfreq$n < superusersplitval & userfreq$n > 2, ] #the rest
+testusers <- userfreq[userfreq$n==1 | userfreq$n==2, ] #test users 1 or 2 photos
 
 
 #do they go further?
@@ -137,8 +141,12 @@ allownerstats <- lapply(allowners, function(currowner){
 })
 
 allownerstats2 <- do.call(rbind, allownerstats)
-allownerstats2$superuser <- 0
-allownerstats2$superuser[allownerstats2$owner %in% superusers$owner] <- 1
+
+#add column listing the user type
+allownerstats2$usertype <- "regular"
+allownerstats2$usertype[allownerstats2$owner %in% superusers$owner] <- "superuser"
+allownerstats2$usertype[allownerstats2$owner %in% testusers$owner] <- "testuser"
+
 names(allownerstats2)[9:10] <- c("centroid_X", "centroid_Y")
 
 write.csv(allownerstats2, "tables/Flickr_user_trip_summary.csv", row.names = FALSE)
