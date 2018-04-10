@@ -16,24 +16,34 @@ options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
 
 ### Load data ----
-flickrshp <- read_sf("input/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
-write.csv(data.frame(flickrshp$tags, flickrshp$title, flickrshp$url_m), "input/flickr_tags_and_titles_all_photos.csv", fileEncoding="UTF-8")
-
-length(unique(flickrshp$title))
-length(unique(flickrshp$tags))
-
-
-tags <- flickrshp$tags
-#tags <- tags[1:20000]
-titles <- flickrshp$title
-#titles <- titles[1:20000]
+flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 
 #A little function to search for particular text in the tags
 #f <- for(i in 1:length(flickrshp$tags)){
 #  if(grepl("vikisogn", flickrshp$tags[[i]])) print(flickrshp$tags[[i]])
 #}
 
+##############################
+#Preliminary processing
+#drop photos pre 2000 and from 2018 or later
+flickrshp <- flickrshp[flickrshp$year<2018 & flickrshp$year>2000, ]
+#drop rows missing urls
+flickrshp <- flickrshp[!is.na(flickrshp$url_m), ]
 
+length(unique(flickrshp$title))
+length(unique(flickrshp$tags))
+length(which(is.na(flickrshp$title)))
+length(which(is.na(flickrshp$tags)))
+
+tags <- flickrshp$tags
+#tags <- tags[1:20000]
+titles <- flickrshp$title
+#titles <- titles[1:20000]
+write.csv(data.frame(flickrshp$tags, flickrshp$title, flickrshp$url_m), "input/flickr_tags_and_titles_2001to2017_photoswithurl.csv", fileEncoding="UTF-8")
+
+
+##############################
+#Main processing
 ### Tidy up data ----
 
 #Tidy tags

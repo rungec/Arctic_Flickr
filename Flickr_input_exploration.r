@@ -121,10 +121,13 @@ ggsave("figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9
 ############################
 #How many users in each region ----
 ############################
+all.sf <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 all.sf.dat <- st_set_geometry(all.sf, NULL)  
 names(all.sf)
+#include only photos from 2000 to 2017 inclusive, with urls
+all.sf.dat <- all.sf.dat[all.sf.dat$year<2018 & all.sf.dat$year>2000,]
+all.sf.dat <- all.sf.dat[!is.na(all.sf.dat$url_m),]
 length(unique(all.sf.dat$owner)) 
-all.sf.dat <- all.sf.dat[all.sf.dat$year<2019 & all.sf.dat$year>1997,]
 #How many photos per user in each region
 usercounts <- all.sf.dat %>% group_by(region) %>% count(owner) %>% summarise(Av_photos_per_user=mean(n), Med_photos_per_user=median(n))
 
