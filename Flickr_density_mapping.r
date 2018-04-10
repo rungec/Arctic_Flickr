@@ -30,6 +30,10 @@ flickrshp <- readOGR("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_l
 #turn boundary 60N into a raster
 rcrs <- crs(boundary60N)
 
+#drop photos pre 2000 and from 2018 or later
+flickrshp <- flickrshp[flickrshp$year<2018 & flickrshp$year>2000, ]
+#drop rows missing urls
+flickrshp <- flickrshp[!is.na(flickrshp$url_m), ]
 
 ##########################
 ### Main processing ----
