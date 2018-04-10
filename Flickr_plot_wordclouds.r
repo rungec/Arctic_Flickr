@@ -15,7 +15,7 @@ library(readxl)
 options(stringsAsFactors = FALSE)
 #options(tibble.width = Inf) #print all columns
 
-nphotos = 2154209  
+nphotos = 2144572  
 
 ##############################
 ### Make word clouds ----
@@ -79,8 +79,8 @@ summaryfun(titlefreq, "flickrtitle")
 # then I manually assigned words as location words (eg finland, iceland) and summed all the similar words (iceland, islande, ijsland, icelandic)
 # saved as .xlsx
 
-top200 <- read_excel("tag_analysis/output/Flickr_tag_and_titlewords_tidied.xlsx", sheet="Top200words")
-top50local <- read_excel("tag_analysis/output/Flickr_tag_and_titlewords_tidied.xlsx", sheet="Top50locations_noduplicates")
+top200 <- read_excel("tag_analysis/output/Flickr_tag_and_titlewords_tidied_2001to2017_photoswithurls.xlsx", sheet="Top200words")
+top50local <- read_excel("tag_analysis/output/Flickr_tag_and_titlewords_tidied_2001to2017_photoswithurls.xlsx", sheet="Top50locations_noduplicates")
 
 #set up plotfun
 wordplotfun <- function(words, freq, outname, ...){
@@ -90,10 +90,10 @@ wordplotfun <- function(words, freq, outname, ...){
 } 
 
 #plot wordclouds
-wordplotfun(top200$Flickr_tag_words, top200$Freq_tag, "flickrtags_top100_tidied", max.words=100, rot.per=0)
-wordplotfun(top200$Flickr_title_words, top200$Freq_title, "flickrtitles_top100_tidied", max.words=100, rot.per=0)
+wordplotfun(top200$Flickr_tag_words, top200$Freq_tag, "flickrtags_top100_tidied_2001to2017_photoswithurls", max.words=100, rot.per=0)
+wordplotfun(top200$Flickr_title_words, top200$Freq_title, "flickrtitles_top100_tidied_2001to2017_photoswithurls", max.words=100, rot.per=0)
 
-wordplotfun(top50local$Flickr_tags, top50local$Freq_tags, "flickrtags_top40locations_tidied", max.words=40, rot.per=0)
-wordplotfun(top50local$Flickr_titles[1:40], top50local$Freq_titles[1:40], "flickrtitles_top40locations_tidied", max.words=40, rot.per=0)
+wordplotfun(top50local$Flickr_tags, top50local$Freq_tags, "flickrtags_top40locations_tidied_2001to2017_photoswithurls", max.words=40, rot.per=0)
+wordplotfun(top50local$Flickr_titles[1:40], top50local$Freq_titles[1:40], "flickrtitles_top40locations_tidied_2001to2017_photoswithurls", max.words=40, rot.per=0)
 
 
