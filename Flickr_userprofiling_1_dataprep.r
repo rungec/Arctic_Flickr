@@ -115,8 +115,8 @@ allownerstats <- lapply(allowners, function(currowner){
     currtrip <- currphotos[currphotos$tripid==currid,  ]
     numphotos_trip <- nrow(currtrip)
     currcentroid <- currtrip %>% st_union() %>% st_convex_hull() %>% st_centroid()
-	distance_from_centroid <- currcentroids %>% st_distance(user_centroid)/1000
-    avgtripdist_from_centroid <- mean(currtrip %>% st_distance(curr_centroid)/1000)
+	distance_from_centroid <- currcentroid %>% st_distance(user_centroid)/1000
+    avgtripdist_from_centroid <- mean(currtrip %>% st_distance(currcentroid)/1000)
     maxtripdist_from_centroid <- max(currtrip %>% st_distance(currcentroid)/1000)
    tripstats2 <- rbind(tripstats2, c(distance_from_centroid[[1]], maxtripdist_from_centroid[[1]], avgtripdist_from_centroid[[1]], numphotos_trip)) 
    trip_centroids <- rbind(trip_centroids, st_coordinates(currcentroid))
