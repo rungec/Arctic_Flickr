@@ -180,6 +180,7 @@ usercounts_overall <- all.sf.dat %>% group_by(owner) %>% tally() %>% count(n)
 names(usercounts_overall) <- c("num_photos_contributed", "num_users")
 write.csv(usercounts_overall, "tables/Number_of_photos_contributed_by_users.csv", row.names = FALSE)
 
+usercounts_overall <- read.csv("tables/Number_of_photos_contributed_by_users.csv", header=TRUE)
 
 p <- ggplot(usercounts_overall, aes(x=num_photos_contributed, y=num_users)) + 
   geom_line() +
@@ -195,7 +196,38 @@ p <- ggplot(usercounts_overall, aes(x=num_photos_contributed, y=num_users)) +
   theme_minimal(base_size=16)
 ggsave("figures/Histogram_of_photos_per_user_zoom.png", p,  scale=0.4)
 
+usercounts_overall$usertype <- "regular"
+usercounts_overall$usertype[usercounts_overall$num_photos_contributed>=471] <- "superuser"
+#usercounts_overall$usertype[usercounts_overall$num_photos_contributed>=10000] <- "more than 10000"
+usercounts_overall$usertype[usercounts_overall$num_photos_contributed<=2] <- "testuser"
 
+#make a nicer plot of the histograms
+# scientific_10 <- function(x) {
+  # parse(text=gsub("e", " %*% 10^", scales::scientific_format()(x)))
+# }
+vp <- viewport(width=0.35, height=0.35, x=0.95, y=0.95, just=c("right", "top"))
+pmain <- ggplot(usercounts_overall, aes(x=num_photos_contributed, fill=usertype))+
+		geom_histogram(bins=50) +
+		scale_fill_manual(name="User type", values=c(wes_palette(3, name="GrandBudapest", type="discrete"))) +
+		scale_x_log10(breaks=c(1,10,100,1000,10000), labels=c(1,10,100,1000,10000)) +
+		xlab("Number of photos contributed")+ylab("Number of users")+
+		theme_minimal(base_size=16) +
+		theme(legend.position="bottom", plot.margin=unit(c(5.5,100,5.5,5.5), "pt"), panel.grid.minor = element_blank()) 
+		#theme(legend.position="right", legend.justification = "bottom") 
+		
+psub <- ggplot(usercounts_overall, aes(x=num_photos_contributed)) + 
+		geom_histogram(bins=50) +
+		xlab("# photos")+ylab("# users") +
+		#scale_x_continuous(label=scientific_10) +
+		scale_x_continuous(limits=c(0, 20000)) +
+		theme_bw(base_size=14) +
+		theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "grey70"))
+
+png("figures/Histogram_of_photos_per_user.png", width=640, height=480, units="px", type = c("windows"))
+	print(pmain)
+	print(psub, vp=vp)
+dev.off()	
+  
 ############################
 #Timeseries by region ----
 ############################
