@@ -4,15 +4,12 @@
 # Follows on from Flickr_tidy_flickrtags.R & Flickr_googlecloudvision_label.r
 
 
-wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
+wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/density_mapping/"
 setwd(wd)
 
 ### Setup ----
 #library(sf)
 library(raster)
-library(rasterVis)
-library(rgdal)
-library(ggplot2)
 
 options(stringsAsFactors = TRUE) #otherwise stat_density_2d throws an error
 #options(tibble.width = Inf) #print all columns
@@ -37,10 +34,10 @@ flickrshp <- flickrshp[!is.na(flickrshp$url_m), ]
 flickrshp$year <- droplevels(flickrshp$year)
 
 ##########################
-### Main processing ----
-
-#rasterize points
-rastFun <- function(data, curres, currphotos, currfile){
+### Main processing 
+### Make rasters counting the number of photos per cell ----
+#set up function to rasterize points
+rastFun <- function(data, curres, currfolder, currphotos, currfile){
   rasttemplate <- raster(xmn=-3335000, xmx=3335000, ymn=-3335000, ymx=3335000, res=curres, crs=rcrs)
   if(file.exists(sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))==FALSE){ 
     rast60N <- rasterize(boundary60N, rasttemplate, filename=sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
@@ -48,25 +45,69 @@ rastFun <- function(data, curres, currphotos, currfile){
     rast60N <- raster(sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
   }
   rast60N[rast60N==1] <- 0
-  densRast <- rasterize(data, rast60N, fun='count', field="id", update=TRUE, filename=sprintf("density_mapping/Flickr_%s_per%scell.tif", currphotos, currfile), overwrite=TRUE)
+  densRast <- rasterize(data, rast60N, fun='count', field="id", update=TRUE, filename=sprintf("%s/Flickr_%s_per%scell.tif", currfolder, currphotos, currfile), overwrite=TRUE)
 }
 
-rast5km <- rastFun(flickrshp, 5000, "allphotos", "5km")
-rast10km <- rastFun(flickrshp, 10000, "allphotos", "10km")
+#maps of all points across all time
+rast5km <- rastFun(flickrshp, 5000, "static_rasters_nphotos", "allseasons", "5km")
+rast10km <- rastFun(flickrshp, 10000, "static_rasters_nphotos", "allseasons", "10km")
 
 #map photos from winter (Nov-Apr)
 flickrshp_winter <- flickrshp[flickrshp$month %in% c("11", "12", "01", "02", "03", "04"), ]
-rast10kmwinter <- rastFun(flickrshp_winter, 10000, "winterphotos", "10km")
+rast10kmwinter <- rastFun(flickrshp_winter, 10000, "static_rasters_nphotos", "winterphotos", "10km")
 #map photos from summer (May-Oct)
 flickrshp_summer <- flickrshp[flickrshp$month %in% c("05", "06", "07", "08", "09", "10"),]
-rast10kmsummer <- rastFun(flickrshp_summer, 10000, "summerphotos", "10km")
+rast10kmsummer <- rastFun(flickrshp_summer, 10000, "static_rasters_nphotos", "summerphotos", "10km")
 
 length(flickrshp_winter)
 length(flickrshp_summer)
 
+#annual maps
+lapply(c(2001:2017), function(curryr) {
+    data <- flickrshp[flickrshp$year==curryr, ]
+    currfile <- paste0("curryr", "_5km")
+    rastFun(data=data, curres=5000, currfolder="annual_rasters_nphotos", currphotos="allseasons_nphotos", currfile=currfile)
+})
+
+##########################
+# Make Rasters counting the number of owners per cell ----
+#set up function to rasterize points
+rastFunOwner <- function(data, curres, currfolder, currphotos, currfile){
+  rasttemplate <- raster(xmn=-3335000, xmx=3335000, ymn=-3335000, ymx=3335000, res=curres, crs=rcrs)
+  if(file.exists(sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))==FALSE){ 
+    rast60N <- rasterize(boundary60N, rasttemplate, filename=sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
+  } else {
+    rast60N <- raster(sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
+  }
+  rast60N[rast60N==1] <- 0
+  densRast <- rasterize(data, rast60N, fun=function(x, ...){ length(unique(x))}, field="owner", update=TRUE, filename=sprintf("%s/Flickr_%s_per%scell.tif", currfolder, currphotos, currfile), overwrite=TRUE)
+}
+
+#maps of all points across all time
+rast5km <- rastFunOwner(flickrshp, 5000, "static_rasters_nowners", "allseasons_nowners", "5km")
+rast10km <- rastFunOwner(flickrshp, 10000, "static_rasters_nowners", "allseasons_nowners", "10km")
+
+#map photos from winter (Nov-Apr)
+flickrshp_winter <- flickrshp[flickrshp$month %in% c("11", "12", "01", "02", "03", "04"), ]
+rast10kmwinter <- rastFunOwner(flickrshp_winter, 10000, "static_rasters_nowners", "winterphotos_nowners", "10km")
+#map photos from summer (May-Oct)
+flickrshp_summer <- flickrshp[flickrshp$month %in% c("05", "06", "07", "08", "09", "10"),]
+rast10kmsummer <- rastFunOwner(flickrshp_summer, 10000, "static_rasters_nowners", "summerphotos_nowners", "10km")
+
+length(unique(flickrshp_winter$owner))
+length(unique(flickrshp_summer$owner))
+
+#annual maps
+lapply(c(2001:2017), function(curryr) {
+  data <- flickrshp[flickrshp$year==curryr, ]
+  currfile <- paste0(curryr, "_5km")
+  rastFunOwner(data=data, curres=5000, currfolder="annual_rasters_nowners", currphotos="allseasons_nowners", currfile=currfile)
+})
+
+
 ##########################
 ### Plot rasters ----
-levelplot(densRast, contour=FALSE)
+#levelplot(densRast, contour=FALSE)
 
 #plotted in arcgis, simpler, more control
 
@@ -74,21 +115,21 @@ levelplot(densRast, contour=FALSE)
 ##########
 #Testing out stat_density_2d
 # it seems to be plotting the desnity in different projection to the points
-testdat <- flickrshp[sample(1:nrow(flickrshp), 1000),]
-coords <- as.data.frame(st_coordinates(testdat))
+#testdat <- flickrshp[sample(1:nrow(flickrshp), 1000),]
+#coords <- as.data.frame(st_coordinates(testdat))
 
-testplot <- ggplot(coords, aes(x=X, y=Y)) +
-            geom_point() +
-            #stat_density_2d(aes(x=coords[,1], y=coords[,2], fill = ..level..), geom = "polygon") +
-            stat_density_2d(aes(fill = ..level..), geom = "polygon", bins=5, n=c(200, 100), h=c) +
-            theme_bw()
+#testplot <- ggplot(coords, aes(x=X, y=Y)) +
+#          geom_point() +
+ #           #stat_density_2d(aes(x=coords[,1], y=coords[,2], fill = ..level..), geom = "polygon") +
+  #           stat_density_2d(aes(fill = ..level..), geom = "polygon", bins=5, n=c(200, 100), h=c) +
+   #          theme_bw()
 
-testplot <- ggplot(testdat) +
-            geom_sf() +
-            #stat_density_2d(aes(x=coords[,1], y=coords[,2], fill = ..level..), geom = "polygon") +
-            stat_density_2d(aes(x=coords[,2], y=coords[,1], fill = ..level..), geom = "polygon") +
-            theme_bw()
+#testplot <- ggplot(testdat) +
+ #           geom_sf() +
+  #          #stat_density_2d(aes(x=coords[,1], y=coords[,2], fill = ..level..), geom = "polygon") +
+   #         stat_density_2d(aes(x=coords[,2], y=coords[,1], fill = ..level..), geom = "polygon") +
+    #        theme_bw()
   
- coords <- st_coordinates(testdat)
+ #coords <- st_coordinates(testdat)
   
   
