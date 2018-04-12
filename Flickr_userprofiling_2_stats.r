@@ -84,7 +84,10 @@ print("Do superusers take more trips?")
 print(paste("superuser", "regularuser", "numtrips", sep=", "))
 print(mwtestfun(superuser, regularuser, "numtrips"))
 print("Are superusers more wide-ranging (average distance of their trip centroids from user centroid)?")
+print("excluding users with only one trip")
 print(paste("superuser", "regularuser", "tripcentroid_distance_from_usercentroid", sep=", "))
+print(paste(nrow(ownerstats[ownerstats$tripid==0 & ownerstats$numtrips>1 & ownerstats$usertype=="superuser",]), "superusers", sep=" "))
+print(paste(nrow(ownerstats[ownerstats$tripid==0 & ownerstats$numtrips>1 & ownerstats$usertype=="regular",]), "regular users", sep=" "))
 print(mwtestfun(superuser, regularuser, "tripcentroid_distance_from_usercentroid"))
 print("Are superusers more wide-ranging (max distance of all their photos from user centroid)?")
 print(paste("superuser", "regularuser", "maxtripdist_from_centroid", sep=", "))
@@ -110,5 +113,6 @@ print(paste("superuser_trips", "regularuser_trips", "maxtripdist_from_centroid",
 print(mwtestfun(superuser_trips, regularuser_trips, "maxtripdist_from_centroid"))
 
 sink()
+
 
 

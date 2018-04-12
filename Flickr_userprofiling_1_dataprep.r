@@ -125,7 +125,7 @@ allownerstats <- lapply(allowners, function(currowner){
   
   #what is the average distance of their trip centroids from their user centroid, for people with more than 1 trip
   if(numtrips_overall>1){
-  centroid_dists_avg=mean(tripstats2$distance_from_centroid)
+  centroid_dists_avg=mean(tripstats2$tripcentroid_distance_from_usercentroid)
   } else {
   centroid_dists_avg=NA
   }
@@ -166,6 +166,11 @@ allownerstats2$usertype[allownerstats2$owner %in% testusers$owner] <- "testuser"
 
 #edit names
 names(allownerstats2)[10:11] <- c("centroid_X", "centroid_Y")
+
+#fix typo in centroid distances without running the whole thing again
+#centroid_dists_avg <- allownerstats2 %>% filter(tripid>1) %>% group_by(owner) %>% summarise(centroid_dists_avg=mean(tripcentroid_distance_from_usercentroid))
+#centroid_dists_avg_match <- centroid_dists_avg[match(allownerstats2$owner[allownerstats2$tripid==0], centroid_dists_avg$owner), ]
+#allownerstats2$tripcentroid_distance_from_usercentroid[allownerstats2$tripid==0 ] <- centroid_dists_avg_match$centroid_dists_avg
 
 #save
 write.csv(allownerstats2, "tables/Flickr_user_trip_summary.csv", row.names = FALSE)
