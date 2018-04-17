@@ -7,27 +7,90 @@
 #this script follows on from Flickr_density_mapping.r
 
 library(raster) #for raster and local morans i
-library(spdep) # for Getis-Ord Gi* statistic
+#library(spdep) # for Getis-Ord Gi* statistic
+library(ggplot2)
 
-wd <- wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/density_mapping/"
+wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/density_mapping/"
 setwd(wd)
 
 
-#remove zeros before analysing?
-# do morans i in raster package instead?
-# read this https://community.esri.com/thread/109190
-
-function(currfile){
-	
-	currRast <- raster(currfile)
-
+#Set up function 
+hotspotfun <- function(currfile, scale, hoodim, rmzeros){
+	#load raster
+  currRast <- raster(currfile)
+  nhood <- focalWeight(currRast, hoodim, "circle") #set a hoodim km radius circular neighbourhoud
+  nhood[ceiling(length(nhood)/2)] <- 0 #set 0 in centre
+  #remove zeros before analysing
+	if(rmzeros==TRUE){ 
+	  currRast[currRast==0] <- NA
+	}
+	#run morans        
+	if(scale=="global"){
+	  vals <- Moran(currRast, w=nhood) 
+  } else if(scale=="local"){
+    vals <- MoranLocal(currRast, w=nhood)
+  }
+	return(vals)
 }
 
-# Where are the photo hotspots
+#########################
+# What is the best distance for neighbourhood radius ----
+#########################
+#set up function
 
-# Where are the owner hotspots
+thresholdfun <- function(currfile, rastres, fileapp, rmzeros){
+  ncells <- c(1,3,5,7,9,11, 15, 21, 31, 41)
+  radii <- ncells*rastres
+  global_morans <- lapply(radii, function(currad){
+    hotspotfun(currfile=currfile, scale="global", hoodim=currad, rmzeros=rmzeros)
+  })
+  global_morans <- unlist(global_morans)
+  moranDF <- data.frame(radii, global_morans)
+  write.csv(moranDF, sprintf("hotspots/Hotspot_global_morans_by_neighbourhood_radius_%s.csv", fileapp))
+  ggplot(moranDF, aes(x=radii/1000, y=global_morans)) +
+    geom_line() +
+    xlab("Neighbourhood radius (km)") + ylab("Global Morans") +
+    theme_minimal(16)
+  ggsave(sprintf("hotspots/Hotspot_threshold_distances_%sm_%s.png", rastres, fileapp), width=10.5, height=3.17, units=c("in"))
+}
 
+#with zeros included  
+thresholdfun("static_rasters_nphotos/Flickr_allseasons_per5kmcell.tif", rastres=5000, "withzeros", rmzeros=FALSE)
+#replace zeros with NAs
+thresholdfun("static_rasters_nphotos/Flickr_allseasons_per5kmcell.tif", rastres=5000, "nozeros", rmzeros=TRUE)
+
+
+#########################
+# Where are the photo hotspots ----
+#########################
+  photoRast <- raster("static_rasters_nphotos/Flickr_allseasons_per250mcell.tif")
+  photo_hotspots <- hotspotfun(currfile=photoRast, 
+                               scale="local", hoodim=, rmzeros=TRUE)
+  writeRaster(photo_hotspots, "hotspots/Flickr_hotspots_photos_morans_nozeros_250m.tif")
+  photo_hotspots2 <- hotspotfun(currfile=photoRast, 
+                               scale="local", hoodim=, rmzeros=FALSE)
+  writeRaster(photo_hotspots2, "hotspots/Flickr_hotspots_photos_morans_withzeros_250m.tif")
+  
+#########################  
+# Where are the owner hotspots ----
+#########################
+  ownerRast <- raster("static_rasters_nowners/Flickr_allseasons_per250mcell.tif")
+  owner_hotspots <- hotspotfun(currfile=ownerRast, 
+                               scale="local", hoodim=, rmzeros=TRUE)
+  writeRaster(photo_hotspots, "hotspots/Flickr_hotspots_owners_morans_nozeros_250m.tif")
+  owner_hotspots2 <- hotspotfun(currfile=ownerRast, 
+                               scale="local", hoodim=, rmzeros=FALSE)
+  writeRaster(photo_hotspots2, "hotspots/Flickr_hotspots_owners_morans_withzeros_250m.tif")
+
+#########################  
 # Where do people take more photos than expected from visitor numbers (normalise nphotos by nowners)
-
+#########################
+    norm_photos <- photoRast/ownerRast
+  norm_hotspots <- hotspotfun(currfile=norm_photos, 
+                               scale="local", hoodim=, rmzeros=)
+  writeRaster(norm_hotspots, "hotspots/Flickr_hotspots_photosnormalisedbyowner_morans_250m.tif")
+  
 # Where do people visit more in summer than in winter? (Are some hotspots seasonal)
 # https://pro.arcgis.com/en/pro-app/tool-reference/spatial-statistics/space-time-analysis.htm 
+  
+  
