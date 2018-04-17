@@ -10,6 +10,7 @@ setwd(wd)
 ### Setup ----
 #library(sf)
 library(raster)
+library(rgdal)
 
 options(stringsAsFactors = TRUE) #otherwise stat_density_2d throws an error
 #options(tibble.width = Inf) #print all columns
@@ -49,6 +50,8 @@ rastFun <- function(data, curres, currfolder, currphotos, currfile){
 }
 
 #maps of all points across all time
+rast250m <- rastFun(flickrshp, 250, "static_rasters_nphotos", "allseasons", "250m")
+rast1km <- rastFun(flickrshp, 1000, "static_rasters_nphotos", "allseasons", "1km")
 rast5km <- rastFun(flickrshp, 5000, "static_rasters_nphotos", "allseasons", "5km")
 rast10km <- rastFun(flickrshp, 10000, "static_rasters_nphotos", "allseasons", "10km")
 
@@ -65,8 +68,15 @@ length(flickrshp_summer)
 #annual maps
 lapply(c(2001:2017), function(curryr) {
     data <- flickrshp[flickrshp$year==curryr, ]
-    currfile <- paste0("curryr", "_5km")
+    currfile <- paste0(curryr, "_5km")
     rastFun(data=data, curres=5000, currfolder="annual_rasters_nphotos", currphotos="allseasons_nphotos", currfile=currfile)
+})
+
+#annual maps, high res
+lapply(c(2001:2017), function(curryr) {
+    data <- flickrshp[flickrshp$year==curryr, ]
+    currfile <- paste0(curryr, "_250m")
+    rastFun(data=data, curres=250, currfolder="annual_rasters_nphotos", currphotos="allseasons_nphotos", currfile=currfile)
 })
 
 ##########################
@@ -84,6 +94,8 @@ rastFunOwner <- function(data, curres, currfolder, currphotos, currfile){
 }
 
 #maps of all points across all time
+rast250m <- rastFunOwner(flickrshp, 250, "static_rasters_nowners", "allseasons_nowners", "250m")
+rast1km <- rastFunOwner(flickrshp, 1000, "static_rasters_nowners", "allseasons_nowners", "1km")
 rast5km <- rastFunOwner(flickrshp, 5000, "static_rasters_nowners", "allseasons_nowners", "5km")
 rast10km <- rastFunOwner(flickrshp, 10000, "static_rasters_nowners", "allseasons_nowners", "10km")
 
@@ -102,6 +114,13 @@ lapply(c(2001:2017), function(curryr) {
   data <- flickrshp[flickrshp$year==curryr, ]
   currfile <- paste0(curryr, "_5km")
   rastFunOwner(data=data, curres=5000, currfolder="annual_rasters_nowners", currphotos="allseasons_nowners", currfile=currfile)
+})
+
+#annual maps, high res
+lapply(c(2001:2017), function(curryr) {
+  data <- flickrshp[flickrshp$year==curryr, ]
+  currfile <- paste0(curryr, "_250m")
+  rastFunOwner(data=data, curres=250, currfolder="annual_rasters_nowners", currphotos="allseasons_nowners", currfile=currfile)
 })
 
 
