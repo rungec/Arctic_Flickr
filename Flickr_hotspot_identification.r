@@ -39,14 +39,13 @@ hotspotfun <- function(currfile, scale, hoodim, rmzeros){
 #set up function
 
 thresholdfun <- function(currfile, rastres, fileapp, rmzeros){
-  ncells <- c(1,3,5,7,9,11, 15, 21, 31, 41)
   radii <- ncells*rastres
   global_morans <- lapply(radii, function(currad){
     hotspotfun(currfile=currfile, scale="global", hoodim=currad, rmzeros=rmzeros)
   })
   global_morans <- unlist(global_morans)
   moranDF <- data.frame(radii, global_morans)
-  write.csv(moranDF, sprintf("hotspots/Hotspot_global_morans_by_neighbourhood_radius_%s.csv", fileapp))
+  write.csv(moranDF, sprintf("hotspots/Hotspot_global_morans_by_neighbourhood_radius_%s_%s.csv", fileapp, rastres))
   ggplot(moranDF, aes(x=radii/1000, y=global_morans)) +
     geom_line() +
     xlab("Neighbourhood radius (km)") + ylab("Global Morans") +
@@ -55,39 +54,53 @@ thresholdfun <- function(currfile, rastres, fileapp, rmzeros){
 }
 
 #with zeros included  
-thresholdfun("static_rasters_nphotos/Flickr_allseasons_per5kmcell.tif", rastres=5000, "withzeros", rmzeros=FALSE)
+#thresholdfun("static_rasters_puds/Flickr_allseasons_per1kmcell.tif", rastres=1000, "withzeros", rmzeros=FALSE)
 #replace zeros with NAs
-thresholdfun("static_rasters_nphotos/Flickr_allseasons_per5kmcell.tif", rastres=5000, "nozeros", rmzeros=TRUE)
+ncells <- c(1,3,5,7,9,11, 15, 21)
+thresholdfun("static_rasters_puds/Flickr_allseasons_per5kmcell.tif", rastres=5000, "nozeros_pud", rmzeros=TRUE)
 
+#replace zeros with NAs
+ncells <- c(1,3,5,7,9,11, 15, 21, 31, 41)
+thresholdfun("static_rasters_puds/Flickr_allseasons_per1kmcell.tif", rastres=1000, "nozeros_pud", rmzeros=TRUE)
+
+ncells <- c(1,3,5,7,9, 11)
+#250m, replace zeros with NAs
+thresholdfun("static_rasters_puds/Flickr_allseasons_per250mcell.tif", rastres=250, "nozeros_pud", rmzeros=TRUE)
+
+
+#########################
+# Where are the pud hotspots ----
+#########################
+  pudRast <- raster("static_rasters_pud/Flickr_allseasons_per250mcell.tif")
+  pud_hotspots <- hotspotfun(currfile=pudRast, 
+                               scale="local", hoodim=9*250, rmzeros=TRUE)
+  writeRaster(pud_hotspots, "hotspots/Flickr_hotspots_pud_morans_nozeros_250m.tif")
+  pud_hotspots2 <- hotspotfun(currfile=pudRast, 
+                               scale="local", hoodim=9*250, rmzeros=FALSE)
+  writeRaster(pud_hotspots2, "hotspots/Flickr_hotspots_pud_morans_withzeros_250m.tif")
 
 #########################
 # Where are the photo hotspots ----
 #########################
   photoRast <- raster("static_rasters_nphotos/Flickr_allseasons_per250mcell.tif")
   photo_hotspots <- hotspotfun(currfile=photoRast, 
-                               scale="local", hoodim=, rmzeros=TRUE)
+                               scale="local", hoodim=9*250, rmzeros=TRUE)
   writeRaster(photo_hotspots, "hotspots/Flickr_hotspots_photos_morans_nozeros_250m.tif")
-  photo_hotspots2 <- hotspotfun(currfile=photoRast, 
-                               scale="local", hoodim=, rmzeros=FALSE)
-  writeRaster(photo_hotspots2, "hotspots/Flickr_hotspots_photos_morans_withzeros_250m.tif")
-  
+
 #########################  
 # Where are the owner hotspots ----
 #########################
   ownerRast <- raster("static_rasters_nowners/Flickr_allseasons_per250mcell.tif")
   owner_hotspots <- hotspotfun(currfile=ownerRast, 
-                               scale="local", hoodim=, rmzeros=TRUE)
+                               scale="local", hoodim=9*250, rmzeros=TRUE)
   writeRaster(photo_hotspots, "hotspots/Flickr_hotspots_owners_morans_nozeros_250m.tif")
-  owner_hotspots2 <- hotspotfun(currfile=ownerRast, 
-                               scale="local", hoodim=, rmzeros=FALSE)
-  writeRaster(photo_hotspots2, "hotspots/Flickr_hotspots_owners_morans_withzeros_250m.tif")
 
 #########################  
 # Where do people take more photos than expected from visitor numbers (normalise nphotos by nowners)
 #########################
-    norm_photos <- photoRast/ownerRast
+  norm_photos <- photoRast/ownerRast
   norm_hotspots <- hotspotfun(currfile=norm_photos, 
-                               scale="local", hoodim=, rmzeros=)
+                               scale="local", hoodim=9*250, rmzeros=TRUE)
   writeRaster(norm_hotspots, "hotspots/Flickr_hotspots_photosnormalisedbyowner_morans_250m.tif")
   
 # Where do people visit more in summer than in winter? (Are some hotspots seasonal)

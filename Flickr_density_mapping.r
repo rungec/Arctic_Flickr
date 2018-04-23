@@ -16,7 +16,7 @@ options(stringsAsFactors = TRUE) #otherwise stat_density_2d throws an error
 #options(tibble.width = Inf) #print all columns
 
 #load country borders shp
-worldmap <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBordersESRI_60degreesN_lambert.shp")
+#worldmap <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBordersESRI_60degreesN_lambert.shp")
 #load bounding box shp
 boundary60N <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN", "60degreesN")
 #load flickr points as .shp
@@ -34,8 +34,55 @@ flickrshp <- flickrshp[flickrshp$year %in% as.factor(2001:2017), ]
 flickrshp <- flickrshp[!is.na(flickrshp$url_m), ]
 flickrshp$year <- droplevels(flickrshp$year)
 
+#Create a new column, user_date
+flickrshp$owner_date <- with(flickrshp, paste(owner, datetkn, sep="_"))
+
 ##########################
 ### Main processing 
+##########################
+# Make Rasters counting the number of photo-user-days (PUD) per cell ----
+#set up function to rasterize points
+rastFunPUD <- function(data, curres, currfolder, currphotos, currfile){
+  rasttemplate <- raster(xmn=-3335000, xmx=3335000, ymn=-3335000, ymx=3335000, res=curres, crs=rcrs)
+  if(file.exists(sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))==FALSE){ 
+    rast60N <- rasterize(boundary60N, rasttemplate, filename=sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
+  } else {
+    rast60N <- raster(sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
+  }
+  rast60N[rast60N==1] <- 0
+  densRast <- rasterize(data, rast60N, fun=function(x, ...){ length(unique(x))}, field="owner_date", update=TRUE, filename=sprintf("%s/Flickr_%s_per%scell.tif", currfolder, currphotos, currfile), overwrite=TRUE)
+}
+
+#maps of all points across all time
+rast250m <- rastFunPUD(flickrshp, 250, "static_rasters_pud", "allseasons_pud", "250m")
+rast1km <- rastFunPUD(flickrshp, 1000, "static_rasters_pud", "allseasons_pud", "1km")
+rast5km <- rastFunPUD(flickrshp, 5000, "static_rasters_pud", "allseasons_pud", "5km")
+rast10km <- rastFunPUD(flickrshp, 10000, "static_rasters_pud", "allseasons_pud", "10km")
+
+#map photos from winter (Nov-Apr)
+flickrshp_winter <- flickrshp[flickrshp$month %in% c("11", "12", "01", "02", "03", "04"), ]
+rast10kmwinter <- rastFunPUD(flickrshp_winter, 10000, "static_rasters_pud", "winterphotos_pud", "10km")
+#map photos from summer (May-Oct)
+flickrshp_summer <- flickrshp[flickrshp$month %in% c("05", "06", "07", "08", "09", "10"),]
+rast10kmsummer <- rastFunPUD(flickrshp_summer, 10000, "static_rasters_pud", "summerphotos_pud", "10km")
+
+
+#annual maps
+lapply(c(2001:2017), function(curryr) {
+  data <- flickrshp[flickrshp$year==curryr, ]
+  currfile <- paste0(curryr, "_5km")
+  rastFunPUD(data=data, curres=5000, currfolder="annual_rasters_pud", currphotos="allseasons_pud", currfile=currfile)
+})
+
+#annual maps, high res
+lapply(c(2001:2017), function(curryr) {
+  data <- flickrshp[flickrshp$year==curryr, ]
+  currfile <- paste0(curryr, "_250m")
+  rastFunPUD(data=data, curres=250, currfolder="annual_rasters_pud", currphotos="allseasons_pud", currfile=currfile)
+})
+
+
+##########################
 ### Make rasters counting the number of photos per cell ----
 #set up function to rasterize points
 rastFun <- function(data, curres, currfolder, currphotos, currfile){
