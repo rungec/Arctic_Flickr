@@ -35,7 +35,7 @@ flickrshp <- flickrshp[!is.na(flickrshp$url_m), ]
 flickrshp$year <- droplevels(flickrshp$year)
 
 #Create a new column, user_date
-flickrshp$owner_date <- with(flickrshp, paste(owner, datetkn, sep="_"))
+flickrshp@data$owner_date <- paste(flickrshp@data$owner, flickrshp@data$datetkn, sep="_")
 
 ##########################
 ### Main processing 
