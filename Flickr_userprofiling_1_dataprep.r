@@ -1,7 +1,6 @@
 #This script does 2 things
 # 1. Determines if 'superusers' take photos of different things
-# 2. Determines what proportion of users are tourists, and if they take photos of different things from locals
-
+# 2. Determines (a) what proportion of users are tourists, and (b) if they take photos of different things from locals
 
 
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
@@ -10,11 +9,12 @@ setwd(wd)
 ### Setup ----
 library(sf)
 library(tidyverse)
-# devtools::install_github("remi-daigle/flickRgeotag")
-#library(flickRgeotag)
+library(readxl)
+devtools::install_github("remi-daigle/flickRgeotag")
+library(flickRgeotag)
 
-#api_key = '790ae098b7062ef9d5f4071d0933f23c'
-#secret = '02ee3e83c5cac3fe'
+api_key = '790ae098b7062ef9d5f4071d0933f23c'
+secret = '02ee3e83c5cac3fe'
 
 
 #flickrshp <- read_sf()
@@ -26,6 +26,14 @@ flickrshp[["title_tags"]] <- NULL
 rm(flickrshp_tags)
 
 ### 1. Are super users different
+
+#do they go further?
+#do they use different flickr tags?
+#do they photograph different objects (google vision)?
+#https://github.com/GoranMilovanovic/Distributional-Semantics-in-R
+#http://docs.quanteda.io/
+#http://www.mjdenny.com/Text_Processing_In_R.html
+
 # 1a. Determine superusers
 #we define a superuser as anyone contributing more than n=superusersplitval photos (where n>=superusersplitval accounts for 50% of all photos)
 #(this is the midpoint of the data - 50% of photos are contributed by people posting this many or more photos)
@@ -37,24 +45,47 @@ superusers <- userfreq[userfreq$n >= superusersplitval, ] #superusers
 averageusers <- userfreq[userfreq$n < superusersplitval & userfreq$n > 2, ] #the rest
 testusers <- userfreq[userfreq$n==1 | userfreq$n==2, ] #test users 1 or 2 photos
 
-
-#do they go further?
-#do they use different flickr tags?
-#do they photograph different objects (google vision)?
-
-
-### 2. How many tourists ----
-
+#########################
+### 2. Identify tourists ----
+# We identify a user as a tourist if they (i) have listed their home location and it is outside the Arctic; or if not listed (ii) if they have spent more than x days ....
+ 
 # 2a. Extract user info
-#allowners <- unique(flickrshp$owner)
-#userinfo <- flickr.people.getInfo(allowners)
-#write.csv(userinfo, "tables/Flickr_user_info.csv", row.names=FALSE)
+allowners <- unique(flickrshp$owner)
+userinfo <- lapply(allowners, function(x) flickr.people.getInfo(x))
+userinfoDF <- do.call(rbind, userinfo)
+userinfoDF$owner <- allowners
+write.csv(userinfoDF, "tables/Flickr_user_statedlocation.csv", row.names=FALSE, ,fileEncoding="UTF-8")
 
-# 2b. What prop with info
+# 2b. What prop of users have stated their location
+userinfoDF$location[userinfoDF$location==""] <- NA
+length(which(!is.na(userinfoDF$location )))/nrow(userinfoDF)
+length(unique(userinfoDF$location)) #How many locations do they state?
+#save the unique locations
+write.csv(unique(userinfoDF$location), "tables/Flickr_user_statedlocation_unique.csv", row.names=FALSE, fileEncoding="UTF-8")
 
-# 2c. What prop tourists
+#I then manually create a lookup table from these locations
+#add a column tourist_type using lookup table
+lookup <- read_excel("tables/Flickr_user_statedlocation_unique.xlsx", sheet="sheet1")
+userinfoDF <- merge(userinfoDF, lookup, by.x="location", by.y="x", all.x=TRUE) 
 
+# 2c. What prop tourists in each region?
+#add the user location info to the flickrshp photo dataset
+flickrshp2 <- merge(flickrshp, userinfoDF, by.x="owner", by.y="owner", all.x=TRUE)
+#add column listing the user type
+flickrshp2$usertype <- "regular"
+flickrshp2$usertype[flickrshp2$owner %in% superusers$owner] <- "superuser"
+flickrshp2$usertype[flickrshp2$owner %in% testusers$owner] <- "testuser"
+#save the whole dataset with the userdata
+save(flickrshp2, file="tag_analysis/input/Flickr_Artic_60N_plus_userdata.Rdata")
 
+user_prop_tbl1 <- flickrshp2 %>% group_by(region, usertype) %>% summarise(n_user_type = n_distinct(owners)) 
+user_prop_tbl2 <- flickrshp2 %>% group_by(region, tourist_type) %>% summarise(n_tourist_type = n_distinct(owners)) 
+
+			
+
+write.csv(user_prop_tbl, "tables/Flickr_user_types_by_region.csv")
+
+#########################
 ### 3. Stats on user travel distance and travel times
 allowners <- unique(flickrshp$owner)
 
