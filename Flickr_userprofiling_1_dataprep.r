@@ -69,6 +69,7 @@ lookup <- read_excel("tables/Flickr_user_statedlocation_unique.xlsx", sheet="she
 userinfoDF <- merge(userinfoDF, lookup, by.x="location", by.y="x", all.x=TRUE) 
 
 # 2c. What prop tourists in each region?
+
 #add the user location info to the flickrshp photo dataset
 flickrshp2 <- merge(flickrshp, userinfoDF, by.x="owner", by.y="owner", all.x=TRUE)
 #add column listing the user type
@@ -78,12 +79,31 @@ flickrshp2$usertype[flickrshp2$owner %in% testusers$owner] <- "testuser"
 #save the whole dataset with the userdata
 save(flickrshp2, file="tag_analysis/input/Flickr_Artic_60N_plus_userdata.Rdata")
 
-user_prop_tbl1 <- flickrshp2 %>% group_by(region, usertype) %>% summarise(n_user_type = n_distinct(owners)) 
-user_prop_tbl2 <- flickrshp2 %>% group_by(region, tourist_type) %>% summarise(n_tourist_type = n_distinct(owners)) 
+#how many superusers, regular users in the different regions
+#how many tourists vs locals in the different regions
+user_prop1 <- flickrshp2 %>% st_set_geometry(NULL) %>% group_by(region, usertype) %>% summarise(n_user_type = n_distinct(owner))
 
-			
+flickrshp2 <- st_set_geometry(flickrshp2, NULL)
+user_prop1 <- lapply(unique(flickrshp2$region), function(curreg){
+				a <- flickrshp2[flickrshp2$region==curreg,]
+				n_usertype <-  a %>% group_by(usertype) %>% 
+										summarise(n_user_type = n_distinct(owner) )
+				n_touristtype <-  a %>% group_by(tourist_type) %>% 
+										summarise(n_user_type = n_distinct(owner))
+				names(n_touristtype)[1] <- "usertype"						
+				n_usertype <- rbind(n_usertype, n_touristtype)						
+				perc_user_type <-  n_usertype$n_user_type/n_distinct(a$owner)
+				return(data.frame(region=curreg, n_usertype, perc_user_type))
+				})
+user_prop1 <- do.call(rbind, user_prop1)				
+write.csv(user_prop1, "tables/Flickr_user_types_by_region.csv", row.names=FALSE)
 
-write.csv(user_prop_tbl, "tables/Flickr_user_types_by_region.csv")
+#What % of superusers are tourists?
+user_prop2 <- flickrshp2 %>% group_by(usertype, tourist_type) %>% 
+							summarise(n_user_tourist_type = n_distinct(owner),
+									perc_user_tourist_type = n_distinct(owner)/n_distinct(flickrshp2$owner))
+
+write.csv(user_prop2, "tables/Flickr_user_type_overallproportions.csv", row.names=FALSE)
 
 #########################
 ### 3. Stats on user travel distance and travel times
