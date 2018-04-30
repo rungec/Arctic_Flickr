@@ -10,7 +10,7 @@ wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
 setwd(wd)
 
 # we need to grab stats by hour, otherwise the flickr api estimate the total poorly!
-df <- expand.grid(datetime=seq(as_datetime("2000-01-01 00:00:00"), as_datetime("2018-04-23 23:59:59"), by="+1 hour"),total=0)
+df <- expand.grid(datetime=seq(as_datetime("2002-08-25 08:00:00"), as_datetime("2018-04-23 23:59:59"), by="+1 hour"),total=0)
 for(y in df$datetime){
   print(as_datetime(y))
   df$total[df$datetime==y] <- flickr.photos.search(api_key,
@@ -21,7 +21,7 @@ for(y in df$datetime){
   )
 }
 
-write.csv(df, "tables/Flickr_global_nphotostaken_byhr_2000to2018.csv")
+write.csv(df, "tables/Flickr_global_nphotostaken_byhr_2002to2018.csv")
 
 #plot by hour
 ggplot(data = df,aes(x=datetime,y=total))+
