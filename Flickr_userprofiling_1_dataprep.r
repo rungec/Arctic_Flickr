@@ -1,6 +1,6 @@
 #This script does 2 things
-# 1. Determines if 'superusers' take photos of different things
-# 2. Determines (a) what proportion of users are tourists, and (b) if they take photos of different things from locals
+# a. Determines if 'superusers' take photos of different things
+# b. Determines (a) what proportion of users are tourists, and (b) if they take photos of different things from locals
 
 
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
@@ -18,7 +18,7 @@ secret = '02ee3e83c5cac3fe'
 
 
 #flickrshp <- read_sf()
-load("tag_analysis/input/Flickr_Artic_60N_plus_flickr_labels.Rdata")
+load("tag_analysis/input/Flickr_Artic_60N_plus_flickr_labels_urban.Rdata")
 flickrshp <- flickrshp_tags
 #drop the tags & titles
 flickrshp[["flickr_tags"]] <- NULL
@@ -34,7 +34,8 @@ rm(flickrshp_tags)
 #http://docs.quanteda.io/
 #http://www.mjdenny.com/Text_Processing_In_R.html
 
-# 1a. Determine superusers
+#########################
+# 1. Identify superusers ----
 #we define a superuser as anyone contributing more than n=superusersplitval photos (where n>=superusersplitval accounts for 50% of all photos)
 #(this is the midpoint of the data - 50% of photos are contributed by people posting this many or more photos)
 userfreq <- flickrshp %>% group_by(owner) %>% tally()
@@ -48,13 +49,14 @@ testusers <- userfreq[userfreq$n==1 | userfreq$n==2, ] #test users 1 or 2 photos
 #########################
 ### 2. Identify tourists ----
 # We identify a user as a tourist if they (i) have listed their home location and it is outside the Arctic; or if not listed (ii) if they have spent more than x days ....
+# We then make a table that lists a) tourist/domestic tourists/locals and b) superusers/regular users/testusers (Step 3)
  
 # 2a. Extract user info
 allowners <- unique(flickrshp$owner)
 userinfo <- lapply(allowners, function(x) flickr.people.getInfo(x))
 userinfoDF <- do.call(rbind, userinfo)
 userinfoDF$owner <- allowners
-write.csv(userinfoDF, "tables/Flickr_user_statedlocation.csv", row.names=FALSE, ,fileEncoding="UTF-8")
+write.csv(userinfoDF, "tables/Flickr_user_statedlocation.csv", row.names=FALSE, fileEncoding="UTF-8")
 
 # 2b. What prop of users have stated their location
 userinfoDF$location[userinfoDF$location==""] <- NA
@@ -62,51 +64,67 @@ length(which(!is.na(userinfoDF$location )))/nrow(userinfoDF)
 length(unique(userinfoDF$location)) #How many locations do they state?
 #save the unique locations
 write.csv(unique(userinfoDF$location), "tables/Flickr_user_statedlocation_unique.csv", row.names=FALSE, fileEncoding="UTF-8")
-
 #I then manually create a lookup table from these locations
-#add a column tourist_type using lookup table
-lookup <- read_excel("tables/Flickr_user_statedlocation_unique.xlsx", sheet="sheet1")
+
+#########################
+### 3. Combine and save user info (owner, touristtype, usertype) ----
+#add a column tourist_type to the list of owners using lookup table
+lookup <- read_excel("tables/Flickr_user_statedlocation_unique_OS.xlsx", sheet="Sheet1")
+#some duplicates appear because R ignores spaces after text on the import eg "Anchorage, USA" and "Anchorage, USA " look the same to the merge function
+lookup <- lookup[!duplicated(lookup$x),]
+userinfoDF <- read.csv("tables/Flickr_user_statedlocation.csv", header=TRUE, fileEncoding="UTF-8")
 userinfoDF <- merge(userinfoDF, lookup, by.x="location", by.y="x", all.x=TRUE) 
+userinfoDF <- userinfoDF[, c("owner", "location", "User_type")]
+names(userinfoDF)[3] <- "touristtype"
 
-# 2c. What prop tourists in each region?
-
-#add the user location info to the flickrshp photo dataset
-flickrshp2 <- merge(flickrshp, userinfoDF, by.x="owner", by.y="owner", all.x=TRUE)
 #add column listing the user type
-flickrshp2$usertype <- "regular"
-flickrshp2$usertype[flickrshp2$owner %in% superusers$owner] <- "superuser"
-flickrshp2$usertype[flickrshp2$owner %in% testusers$owner] <- "testuser"
-#save the whole dataset with the userdata
-save(flickrshp2, file="tag_analysis/input/Flickr_Artic_60N_plus_userdata.Rdata")
+userinfoDF$usertype <- "regular"
+userinfoDF$usertype[userinfoDF$owner %in% superusers$owner] <- "superuser"
+userinfoDF$usertype[userinfoDF$owner %in% testusers$owner] <- "testuser"
+#save the whole dataset 
+write.csv(userinfoDF, "tables/Flickr_userinfo_tourist_or_superuser.csv", fileEncoding="UTF-8", row.names=FALSE)
 
+#########################
+### 4. User stats ----
+# 4a. What prop tourists in each region?
 #how many superusers, regular users in the different regions
 #how many tourists vs locals in the different regions
-user_prop1 <- flickrshp2 %>% st_set_geometry(NULL) %>% group_by(region, usertype) %>% summarise(n_user_type = n_distinct(owner))
-
-flickrshp2 <- st_set_geometry(flickrshp2, NULL)
-user_prop1 <- lapply(unique(flickrshp2$region), function(curreg){
-				a <- flickrshp2[flickrshp2$region==curreg,]
+#function
+user_propfun <- function(data, outname) {
+  user_prop1 <- lapply(unique(data$region), function(curreg){
+				a <- flickrshp2[data$region==curreg,]
 				n_usertype <-  a %>% group_by(usertype) %>% 
 										summarise(n_user_type = n_distinct(owner) )
-				n_touristtype <-  a %>% group_by(tourist_type) %>% 
+				n_touristtype <-  a %>% group_by(touristtype) %>% 
 										summarise(n_user_type = n_distinct(owner))
 				names(n_touristtype)[1] <- "usertype"						
 				n_usertype <- rbind(n_usertype, n_touristtype)						
 				perc_user_type <-  n_usertype$n_user_type/n_distinct(a$owner)
 				return(data.frame(region=curreg, n_usertype, perc_user_type))
 				})
-user_prop1 <- do.call(rbind, user_prop1)				
-write.csv(user_prop1, "tables/Flickr_user_types_by_region.csv", row.names=FALSE)
+  user_prop1 <- do.call(rbind, user_prop1)				
+write.csv(user_prop1, sprintf("tables/Flickr_user_types_%s.csv", outname), row.names=FALSE)
+}
+
+#Merge user info with flickrshp
+flickrshp2 <- st_set_geometry(flickrshp2, NULL)
+flickrshp2 <- merge(flickrshp, userinfoDF, by.x="owner", by.y="owner", all.x=TRUE)
+
+#run user function on all data
+user_propfun(flickrshp2, "by_region")
+#run user function outside cities
+flickrshp2_sub <- flickrshp2[is.na(flickrshp2$InCity), ]
+user_propfun(flickrshp2_sub, "by_region_outsideCities")
 
 #What % of superusers are tourists?
-user_prop2 <- flickrshp2 %>% group_by(usertype, tourist_type) %>% 
+user_prop2 <- flickrshp2 %>% group_by(usertype, touristtype, InCity) %>% 
 							summarise(n_user_tourist_type = n_distinct(owner),
 									perc_user_tourist_type = n_distinct(owner)/n_distinct(flickrshp2$owner))
 
-write.csv(user_prop2, "tables/Flickr_user_type_overallproportions.csv", row.names=FALSE)
+write.csv(user_prop2, "tables/Flickr_user_types_overallproportions.csv", row.names=FALSE)
 
 #########################
-### 3. Stats on user travel distance and travel times
+### 5. Stats on user travel distance and travel times ----
 allowners <- unique(flickrshp$owner)
 
 allownerstats <- lapply(allowners, function(currowner){
