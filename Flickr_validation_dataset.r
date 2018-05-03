@@ -12,12 +12,7 @@ library(tidyverse)
 
 
 ### load data
-flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
-#lulc <- raster()
-#lulc_lookup <- 
-urbanshp <- read_sf("D:/Box Sync/Arctic/Data/Landuse/Urban_areas/ne_10m_populated_places/ne_10m_populated_places_Arctic60N_laea_10kmbuffer_popnmorethan50k.shp")
-urbanshp <- urbanshp[, "NAME_EN"]
-urbanshp$InCity <- 1
+flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban.shp")
 
 ### prelim processing
 # add lulc that each photo falls within
@@ -30,12 +25,6 @@ urbanshp$InCity <- 1
   #flickrshp$lulc_desc <- lulc_lookup[flickrshp$lulc_code]
   # Save the full dataset with lulc added
   #save(flickrshp, file="input/Flickr_Artic_60N_plus_lulc.Rdata")
-
-# drop photos from urban areas
-# Urban areas are defined as a 10km radius around any the gps coordinates of any population centre of 50 000 or more
-# lat and lon of urban centers came from http://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/
-flickrshp <- st_join(flickrshp, urbanshp)
-st_write(flickrshp, "D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban", driver="ESRI Shapefile")
 
 #### Make a list of photos for validation ----
 # Pull out only the rows not classes as developed

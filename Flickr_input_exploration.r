@@ -55,6 +55,11 @@ dat$photo_lat <- dat$latitude
 #load country borders shapefile
 worldmap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBorders_60degreesN_lambert.shp")
 
+#load urban areas shapefile
+# Urban areas are defined as a 10km radius around any the gps coordinates of any population centre of 50 000 or more
+# lat and lon of urban centers came from http://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/
+urbanshp <- read_sf("D:/Box Sync/Arctic/Data/Landuse/Urban_areas/ne_10m_populated_places/ne_10m_populated_places_Arctic60N_laea_10kmbuffer_popnmorethan50k.shp")
+
 ############################
 #convert to spatial points ----
 ############################
@@ -119,9 +124,18 @@ ggsave("figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9
 #st_write(all.sf, dsn="D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
 
 ############################
+#Identify urban areas ----
+############################
+urbanshp <- urbanshp[, "NAME_EN"]
+urbanshp$InCity <- 1
+# drop photos from urban areas
+all.sf <- st_join(all.sf, urbanshp)
+st_write(all.sf, "D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban", driver="ESRI Shapefile")
+
+############################
 #How many users in each region ----
 ############################
-all.sf <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
+all.sf <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban.shp")
 all.sf.dat <- st_set_geometry(all.sf, NULL)  
 names(all.sf)
 #include only photos from 2000 to 2017 inclusive, with urls
