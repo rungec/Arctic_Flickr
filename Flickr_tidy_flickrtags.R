@@ -16,7 +16,7 @@ options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
 
 ### Load data ----
-flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
+flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban.shp")
 
 #A little function to search for particular text in the tags
 #f <- for(i in 1:length(flickrshp$tags)){
@@ -83,10 +83,10 @@ titlelist <- lapply(titlelist, function(currtitles){
 #or just save file with UTF-8 encoding
 
 ### Join to flickrshp and save ----
-flickrshp_tags <- flickrshp[, c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region")]
+flickrshp_tags <- flickrshp[, c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region", "InCity")]
 flickrshp_tags$flickr_tags <- taglist
 flickrshp_tags$title_tags <- titlelist
-  save(flickrshp_tags,file="input/Flickr_Artic_60N_plus_flickr_labels.Rdata")
+  save(flickrshp_tags,file="input/Flickr_Artic_60N_plus_flickr_labels_urban.Rdata")
 
 #save in long format - each tag is a row, with photo information duplicated on each row
 flickrshp_tags_ft <- flickrshp_tags %>% data.frame() %>% unnest(flickr_tags)
