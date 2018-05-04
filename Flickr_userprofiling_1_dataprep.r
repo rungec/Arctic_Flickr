@@ -1,6 +1,6 @@
 #This script does 2 things
-# a. Determines if 'superusers' take photos of different things
-# b. Determines (a) what proportion of users are tourists, and (b) if they take photos of different things from locals
+# a. Identifies superusers and tourists and creates the lookup table Flickr_userinfo_tourist_or_superuser.csv
+# b. Determines (a) what proportion of users are tourists/superusers, and (b) if they take photos in different places (regions, inside/outside cities) from locals/regular
 
 
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
@@ -76,6 +76,7 @@ userinfoDF <- read.csv("tables/Flickr_user_statedlocation.csv", header=TRUE, fil
 userinfoDF <- merge(userinfoDF, lookup, by.x="location", by.y="x", all.x=TRUE) 
 userinfoDF <- userinfoDF[, c("owner", "location", "User_type")]
 names(userinfoDF)[3] <- "touristtype"
+userinfoDF$touristtype[userinfoDF$touristtype=="NA"] <- NA
 
 #add column listing the user type
 userinfoDF$usertype <- "regular"
@@ -89,10 +90,15 @@ write.csv(userinfoDF, "tables/Flickr_userinfo_tourist_or_superuser.csv", fileEnc
 # 4a. What prop tourists in each region?
 #how many superusers, regular users in the different regions
 #how many tourists vs locals in the different regions
-#function
+
+#Merge user info with flickrshp
+flickrshp <- st_set_geometry(flickrshp, NULL)
+flickrshp <- merge(flickrshp, userinfoDF, by.x="owner", by.y="owner", all.x=TRUE)
+
+#set up function
 user_propfun <- function(data, outname) {
   user_prop1 <- lapply(unique(data$region), function(curreg){
-				a <- flickrshp2[data$region==curreg,]
+				a <- flickrshp[data$region==curreg,]
 				n_usertype <-  a %>% group_by(usertype) %>% 
 										summarise(n_user_type = n_distinct(owner) )
 				n_touristtype <-  a %>% group_by(touristtype) %>% 
@@ -106,141 +112,127 @@ user_propfun <- function(data, outname) {
 write.csv(user_prop1, sprintf("tables/Flickr_user_types_%s.csv", outname), row.names=FALSE)
 }
 
-#Merge user info with flickrshp
-flickrshp2 <- st_set_geometry(flickrshp2, NULL)
-flickrshp2 <- merge(flickrshp, userinfoDF, by.x="owner", by.y="owner", all.x=TRUE)
-
 #run user function on all data
-user_propfun(flickrshp2, "by_region")
+user_propfun(flickrshp, "by_region")
 #run user function outside cities
-flickrshp2_sub <- flickrshp2[is.na(flickrshp2$InCity), ]
-user_propfun(flickrshp2_sub, "by_region_outsideCities")
+flickrshp_sub <- flickrshp[is.na(flickrshp$InCity), ]
+user_propfun(flickrshp_sub, "by_region_outsideCities")
 
 #What % of superusers are tourists?
-user_prop2 <- flickrshp2 %>% group_by(usertype, touristtype, InCity) %>% 
+user_prop2 <- flickrshp %>% group_by(usertype, touristtype, InCity) %>% 
 							summarise(n_user_tourist_type = n_distinct(owner),
-									perc_user_tourist_type = n_distinct(owner)/n_distinct(flickrshp2$owner))
+									perc_user_tourist_type = n_distinct(owner)/n_distinct(flickrshp$owner))
+
+write.csv(user_prop2, "tables/Flickr_user_types_overallproportions_inandoutsideCities.csv", row.names=FALSE)
+
+user_prop2 <- flickrshp %>% group_by(usertype, touristtype) %>% 
+							summarise(n_user_tourist_type = n_distinct(owner),
+									perc_user_tourist_type = n_distinct(owner)/n_distinct(flickrshp$owner))
 
 write.csv(user_prop2, "tables/Flickr_user_types_overallproportions.csv", row.names=FALSE)
 
-#########################
-### 5. Stats on user travel distance and travel times ----
-allowners <- unique(flickrshp$owner)
+#is the number of tourists vs locals in superusers drawn from same distribution as regular users
+#drop NAs
+userinfoDF <- read.csv("tables/Flickr_userinfo_tourist_or_superuser.csv", fileEncoding="UTF-8", header = TRUE)
+userinfoDFnoNAs <- userinfoDF[complete.cases(userinfoDF),]
 
-allownerstats <- lapply(allowners, function(currowner){
-  #extract subset for currowner
-  currphotos <- flickrshp[flickrshp$owner==currowner, ]
-  
-  #how long between first and last photos
-  totaltrip_days <- as.numeric(difftime(max(currphotos$datetkn), min(currphotos$datetkn), units="days"))
+#drop testuser
+userinfoDFnoNAs <- userinfoDFnoNAs[!userinfoDFnoNAs$usertype=="testuser", ] %>% droplevels() 
+u1 <- table(userinfoDFnoNAs$usertype, userinfoDFnoNAs$touristtype)
+u1_chi <- chisq.test(u1, simulate.p.value = TRUE, B=10000)
+#combine domestic and locals
+userinfoDFnoNAs$touristtype[userinfoDFnoNAs$touristtype=="domestic"] <- "local"
+userinfoDFnoNAs <- droplevels(userinfoDFnoNAs)
+u2 <- table(userinfoDFnoNAs$touristtype, userinfoDFnoNAs$usertype)
+u2_chi <- chisq.test(u2, simulate.p.value = TRUE, B=10000)
+#save chisq results
+sink("tables/Flickr_userstats_chisq.txt")
+  print("Is the number of tourists vs locals in superusers drawn from same distribution as regular users")
+  print("drop test users")
+  print(u1_chi)
+  print("Actual n users")
+  print(u1)
+  print("Expected n users")
+  print(u1_chi$expected)
+  print("combine locals and domestics")
+  print(u2_chi)
+  print("Actual n users")
+  print(u2)
+  print("Expected n users")
+  print(u2_chi$expected)
 
-  #distance traveled along path from first to last photo
-  bydate <- order(currphotos$datetkn) #order photos by date
-  start <- bydate[c(1, 1:length(bydate)-1)]
-  end <- bydate[1:length(bydate)]
-  dists <- as.integer(mapply(function(a,b) {st_distance(currphotos[a, ], currphotos[b, ])}, a = start, b = end))/1000
-  photodates <- currphotos$datetkn
-  timebtwphotos <- mapply(function(a,b) {as.numeric(difftime(photodates[b], photodates[a], units="days"))}, a = start, b = end)
-  
-  #reorder photos by date, add distance per day & time between consecutive photos
-  currphotos <-  cbind(currphotos[bydate,], dists, timebtwphotos)
-  total_trip_dist <- sum(currphotos$dists)
-  
-  #what is the centroid of the convex hull bounding their photos
-  user_centroid <- st_geometry(currphotos) %>% st_union() %>% st_convex_hull() %>% st_centroid()
-  
-  #furthest & average distance travelled (in km) from this centroid
-  distances <- currphotos %>% st_distance(user_centroid)
-  maxdistfromcentroid_km <- max(distances)/1000
-  avgdistfromcentroid_km <- mean(distances)/1000
-  
-  #how many trips did they take, defining a trip as any photos separated by 14 days or more
-  counter=1
-  currphotos$tripid <- NA
-  for(i in 1:nrow(currphotos)){
-        if(currphotos$timebtwphotos[i] >= 14) counter=counter+1 
-        currphotos$tripid[i] <- counter
-  }
-  
-  #total number of trips
-  numtrips_overall <- max(currphotos$tripid)
-  numphotos_overall <- nrow(currphotos)
-  
-  #total distance travelled each trip
-  tripstats <- currphotos %>% st_set_geometry(NULL) %>% group_by(tripid) %>% 
-                                         summarise(tripdist_km=sum(dists),
-                                                   triplength_days=sum(timebtwphotos)) %>%
-                                        as.list()
-  #average and median distance per day, excluding days with no photos
-  #tripstats2 <- currphotos %>% st_set_geometry(NULL) %>%  filter(row_number()!=1) %>%  #drop the first row
-                         #      group_by(datetkn) %>% summarise(dailydist=sum(dists)) %>%
-                          #         summarise(tripdist_avperday_km=mean(dailydist),
-                           #                 tripdist_medianperday_km=median(dailydist))
-  
-  #where is the centroid of each trip, and how far is it from the total centroid?
-  tripstats2 <- data.frame()
-  trip_centroids <- c()
-  for(currid in unique(currphotos$tripid)){
-    currtrip <- currphotos[currphotos$tripid==currid,  ]
-    numphotos_trip <- nrow(currtrip)
-    currcentroid <- currtrip %>% st_union() %>% st_convex_hull() %>% st_centroid()
-	distance_from_centroid <- currcentroid %>% st_distance(user_centroid)/1000
-    avgtripdist_from_centroid <- mean(currtrip %>% st_distance(currcentroid)/1000)
-    maxtripdist_from_centroid <- max(currtrip %>% st_distance(currcentroid)/1000)
-   tripstats2 <- rbind(tripstats2, c(distance_from_centroid[[1]], maxtripdist_from_centroid[[1]], avgtripdist_from_centroid[[1]], numphotos_trip)) 
-   trip_centroids <- rbind(trip_centroids, st_coordinates(currcentroid))
-  }
-  names(tripstats2) <- c("tripcentroid_distance_from_usercentroid", "maxtripdist_from_centroid", "avgtripdist_from_centroid", "numphotos_trip")
-  
-  #what is the average distance of their trip centroids from their user centroid, for people with more than 1 trip
-  if(numtrips_overall>1){
-  centroid_dists_avg=mean(tripstats2$tripcentroid_distance_from_usercentroid)
-  } else {
-  centroid_dists_avg=NA
-  }
-  
-  #summary
-  #in this summary, the row where tripid=0 corresponds to the stats for all the photos for that user
-  # the average trip distance from centroid for tripid=0 is the average distance between all the photos and the centroid of the convex hull bounding the photos, 
-  # the average trip distance from centroid for all other tripids is the distance between 
-  # the centroid of the convex hull bounding the trip photos and all the photos for that trip. 
-  # the max distance from centroid is in relation to the centroid of the all photos for that trip (all photos for the user if tripid=0)
-  # distance from centroid is the distance between the centroid of the convex hull bounding the photos for a given trip and the centroid of the convex hull bounding all the photos.
-  # for tripid=0 I report the average of this value across trips, unless there is only 1 trip in which case NA is returned
+#is the number of tourists vs locals in cities drawn from same distribution as outside cities
+flickrshp$InCity[is.na(flickrshp$InCity)] <- 0
+subdat <- flickrshp[flickrshp$usertype %in% c("regular", "superuser") & !is.na(flickrshp$touristtype), ] 
 
-  overallstats <- data.frame(owner=currowner, tripid=0, 
-                             tripdist_km=total_trip_dist, 
-                             triplength_days=totaltrip_days, 
-							 tripcentroid_distance_from_usercentroid=centroid_dists_avg,
-                             maxtripdist_from_centroid=maxdistfromcentroid_km[[1]], 
-                             avgtripdist_from_centroid=avgdistfromcentroid_km[[1]], 
-                             numphotos_trip=numphotos_overall, numtrips=numtrips_overall)
-  tripstats <- data.frame(owner=rep(currowner, numtrips_overall), 
-                          tripstats, 
-                          tripstats2, 
-                          numtrips=rep(NA, numtrips_overall))
-  overallstats <- rbind(overallstats, tripstats)
-  ownercentroids <- rbind(st_coordinates(user_centroid), trip_centroids)
-  overallstats <- cbind(overallstats, ownercentroids)
-  return(overallstats)
-})
+#do tourists take more photos inside cities
+u3 <- table(subdat$InCity, subdat$touristtype)
+u3_chi <- chisq.test(u3, simulate.p.value = TRUE, B=10000)
+  print("do tourists take more photos inside cities")
+  print(u3_chi)
+  print("Actual n photos")
+  print(u3)
+  print("Expected n photos")
+  print(u3_chi$expected)
 
-#Transform the list into a data.frame
-allownerstats2 <- do.call(rbind, allownerstats)
+#do tourists take more photos inside cities, excluding superusers
+subdatb <- subdat[!subdat$usertype=="superuser", ]  %>% droplevels()
+u3b <- table(subdatb$InCity, subdatb$touristtype)
+u3b_chi <- chisq.test(u3b, simulate.p.value = TRUE, B=10000)
+  print("do tourists take more photos inside cities, excluding superusers")
+  print(u3b_chi)
+  print("Actual n photos")
+  print(u3b)
+  print("Expected n photos")
+  print(u3b_chi$expected)
+  
+  
+#do superusers take more photos inside cities
+u4 <- table(subdat$InCity, subdat$usertype)
+u4_chi <- chisq.test(u4, simulate.p.value = TRUE, B=10000)
+  print("do superusers take more photos inside cities")
+  print(u4_chi)
+  print("Actual n photos")
+  print(u4)
+  print("Expected n photos")
+  print(u4_chi$expected)
 
-#add column listing the user type
-allownerstats2$usertype <- "regular"
-allownerstats2$usertype[allownerstats2$owner %in% superusers$owner] <- "superuser"
-allownerstats2$usertype[allownerstats2$owner %in% testusers$owner] <- "testuser"
+#are there more tourists or locals outside cities
+user_prop5 <- subdat %>% droplevels() %>% group_by(InCity, touristtype) %>% 
+  summarise(n_user_tourist_type = n_distinct(owner))
+u5 <- xtabs(n_user_tourist_type ~ InCity + touristtype, data=user_prop5)
+u5_chi <- chisq.test(u5, simulate.p.value = TRUE, B=10000)
+  print("are there more tourists inside cities")
+  print(u5_chi)
+  print("Actual n users")
+  print(u5)
+  print("Expected n users")
+  print(u5_chi$expected)
+  
+#are there more tourists or locals outside cities #drop domestic
+user_prop5b <- subdat[!subdat$touristtype=="domestic", ] %>% droplevels() %>% group_by(InCity, touristtype) %>% 
+  summarise(n_user_tourist_type = n_distinct(owner))
+u5b <- xtabs(n_user_tourist_type ~ InCity + touristtype, data=user_prop5b)
+u5b_chi <- chisq.test(u5b, simulate.p.value = TRUE, B=10000)
+  print("are there more tourists inside cities, excluding domestic")
+  print(u5b_chi)
+  print("Actual n users")
+  print(u5b)
+  print("Expected n users")
+  print(u5b_chi$expected)
 
-#edit names
-names(allownerstats2)[10:11] <- c("centroid_X", "centroid_Y")
+#are there more regular or superusers outside cities
+user_prop6 <- subdat %>% droplevels() %>% group_by(InCity, usertype) %>% 
+  summarise(n_user_user_type = n_distinct(owner))
+u6 <- xtabs(n_user_user_type ~ InCity + usertype, data=user_prop6)
+u6_chi <- chisq.test(u6, simulate.p.value = TRUE, B=10000)
+  print("are there more superusers inside cities")
+  print(u6_chi)
+  print("Actual n users")
+  print(u6)
+  print("Expected n users")
+  print(u6_chi$expected)
+sink()  
 
-#fix typo in centroid distances without running the whole thing again
-#centroid_dists_avg <- allownerstats2 %>% filter(tripid>1) %>% group_by(owner) %>% summarise(centroid_dists_avg=mean(tripcentroid_distance_from_usercentroid))
-#centroid_dists_avg_match <- centroid_dists_avg[match(allownerstats2$owner[allownerstats2$tripid==0], centroid_dists_avg$owner), ]
-#allownerstats2$tripcentroid_distance_from_usercentroid[allownerstats2$tripid==0 ] <- centroid_dists_avg_match$centroid_dists_avg
-
-#save
-write.csv(allownerstats2, "tables/Flickr_user_trip_summary.csv", row.names = FALSE)
+summary(as.factor(flickrshp$InCity))
 
