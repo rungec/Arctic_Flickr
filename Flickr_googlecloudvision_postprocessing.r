@@ -134,9 +134,13 @@ wordplotfun(allfreq$x, allfreq$freq, outname="Arctic", max.words=100, rot.per=0)
 load("input/Flickr_Artic_60N_plus_flickr_labels_urban.Rdata")
 flickrshp <- flickrshp_tags
 rm(flickrshp_tags)
+tags <- flickrshp$flickr_tags
+titles <- flickrshp$title_tags
+flickrshp[["flickr_tags"]] <- NULL
+flickrshp[["title_tags"]] <- NULL
 
 #load userinfo
-userinfoDF <- read.csv("tables/Flickr_userinfo_tourist_or_superuser.csv", fileEncoding="UTF-8", header=TRUE)
+userinfoDF <- read.csv(paste0(dirname(wd), "/tables/Flickr_userinfo_tourist_or_superuser.csv"), fileEncoding="UTF-8", header=TRUE)
 
 #load and combine google labels for each region
 filelist <- list.files("output/byregion/", pattern="Google_labels_summary_foreachphoto_", full.names = TRUE)
@@ -145,6 +149,8 @@ allphotosL <- lapply(filelist, function(i) {
 			return(a)
 			})
 allphotos <- do.call(rbind, allphotosL)
+#reorder
+allphotos <- allphotos[, c("id", "numtags", paste0(rep(c("googletag", "googlescore"), each=20), 1:20))]
 
 #Merge user info with flickrshp
 flickrshp <- merge(flickrshp, userinfoDF, by.x="owner", by.y="owner", all.x=TRUE)
