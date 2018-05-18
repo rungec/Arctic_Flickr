@@ -37,7 +37,7 @@ flickramap <- flickramap[ rowSums(is.na( flickramap[, grep("googletag", names(fl
 
 #output remaining google vision words
 gwords <- flickramap %>% st_set_geometry(NULL) %>% 
-          select(c("id", "region", grep("googletag", names(flickramap), value=TRUE))) 
+          select(c("id", "region", "usertype", "touristtype", grep("googletag", names(flickramap), value=TRUE))) 
 gwfreqa <- unlist(gwords[, grep("googletag", names(flickramap), value=TRUE)]) 
 gwfreq <- plyr::count(gwfreqa)
 write.csv(gwfreq, "regional_word_frequency/Frequency_of_google_labels_overscore60_Amap.csv", fileEncoding="UTF-8", row.names=FALSE)
@@ -74,10 +74,17 @@ nrow(amapfreq)
 #replace words with Escodes
 codetbl <- gwords
 codetbl[,grep("googletag", names(flickramap), value=TRUE)] <- amapfreq$Escode[match(unlist(gwords[, grep("googletag", names(flickramap), value=TRUE)]), amapfreq$x)]
+names(codetbl)[grep("googletag", names(codetbl))] <- paste0("escode", 1:20)
+
+#add to flickramap
+flickramap <- merge(flickramap, codetbl[, c("id", grep("escode", names(codetbl), value=TRUE))], by.x="id", by.y="id", all.x=TRUE)
+save(flickramap, file="Flickr_Artic_60N_plus_flickrandgooglelabels_amap_escodes.Rdata")
 
 #change to long format
-codetbl_long <- gather(codetbl, googletag, escode, grep("googletag", names(codetbl)))
+codetbl_long <- gather(codetbl, escode1, escode, grep("escode", names(codetbl)))
 names(codetbl_long)[1] <- "flickrid"
+#drop extra col
+codetbl_long <- codetbl_long[, !(names(codetbl_long)=="escode1")]
 
 #summarise number of photos representing each escode, in each region
 codefreq <- codetbl_long %>% group_by(region, escode) %>% summarise(freq_amap_escode=n_distinct(flickrid))
@@ -100,7 +107,58 @@ codefreq_wide <- codefreq %>%
   spread(temp, value)
 write.csv(codefreq_wide, "regional_word_frequency/Frequency_of_ESclasses_amap_byregion_wide.csv", row.names=FALSE)
 
+########################
+#Tabulate freq of photos by user
+#summarise nphotos taken by the different user types
+nusers_inregion <- codetbl %>% group_by(region) %>% summarise(nusers_region=n_distinct(id))
+nusers_inregion_type <- codetbl %>% group_by(region, usertype) %>% summarise(nusers_region_type=n_distinct(id))
+nusers_inregion_type_tourist <- codetbl %>% group_by(region, usertype, touristtype) %>% summarise(nusers_region_type_tourist=n_distinct(id))
+nuserDF <- merge(nusers_inregion, nusers_inregion_type, by=c("region"), all.y=TRUE)
+nuserDF <- merge(nuserDF, nusers_inregion_type_tourist, by=c("region", "usertype"), all.y=TRUE)
+nuserDF$propinregion_bytype <- nuserDF$nusers_region_type/nuserDF$nusers_region
+nuserDF$propinregion_tourist <- nuserDF$nusers_region_type_tourist/nuserDF$nusers_region_type
+write.csv(nuserDF, "regional_word_frequency/NumPhotos_byregion_anduser_amap.csv", row.names=FALSE)
 
+#summarise number of photos representing each escode, in each usertype (regular/superuser)
+usercodefreq <- codetbl_long %>% group_by(usertype, escode) %>% 
+                      summarise(freq_amap_escode=n_distinct(flickrid)) %>%
+                      spread(usertype, freq_amap_escode)
+touristcodefreq <- codetbl_long %>% group_by(touristtype, escode) %>% 
+                      summarise(freq_amap_escode=n_distinct(flickrid)) %>%
+                      spread(touristtype, freq_amap_escode)
+usercodefreqDF <- merge(usercodefreq, touristcodefreq, by="escode")
+nphotos_byusers <- codetbl_long %>% group_by(usertype) %>% 
+  summarise(nphotos=n_distinct(flickrid)) %>% data.frame()
+nphotos_bytourists <- codetbl_long %>% group_by(touristtype) %>% 
+  summarise(nphotos=n_distinct(flickrid, na.rm=TRUE)) %>% data.frame()
+usercodefreqDF$regular_prop <- usercodefreqDF$regular/nphotos_byusers[nphotos_byusers$usertype=="regular", "nphotos"]
+usercodefreqDF$superuser_prop <- usercodefreqDF$superuser/nphotos_byusers[nphotos_byusers$usertype=="superuser", "nphotos"]
+usercodefreqDF$domestic_prop <- usercodefreqDF$domestic/nphotos_bytourists[nphotos_bytourists$touristtype %in% "domestic", "nphotos"]
+usercodefreqDF$local_prop <- usercodefreqDF$local/nphotos_bytourists[nphotos_bytourists$touristtype %in% "local", "nphotos"]
+usercodefreqDF$tourist_prop <- usercodefreqDF$tourist/nphotos_bytourists[nphotos_bytourists$touristtype %in% "tourist", "nphotos"]
+usercodefreqDF <- rbind(usercodefreqDF, c("total_nphotos", rep(c(nphotos_byusers$nphotos, nphotos_bytourists$nphotos), times=2)))  
+write.csv(usercodefreqDF, "regional_word_frequency/NumPhotos_byescode_anduser_amap.csv", row.names=FALSE)
+
+#group into biotic, abiotic, recreation, harvesting and count
+codetbl_long$esgroup <- sapply(codetbl_long$escode, function(x) {
+                              a <- strsplit(x, "_")
+                              if ("harvesting" %in% a[[1]]){
+                                return(a[[1]][2])
+                              } else {
+                                return(a[[1]][1])
+                              }
+                        })
+  usergroupfreq <- codetbl_long %>% group_by(usertype, esgroup) %>% 
+    summarise(freq_amap_esgroup=n_distinct(flickrid)) %>%
+    spread(usertype, freq_amap_esgroup)
+  touristgroupfreq <- codetbl_long %>% group_by(touristtype, esgroup) %>% 
+    summarise(freq_amap_esgroup=n_distinct(flickrid)) %>%
+    spread(touristtype, freq_amap_esgroup)
+usergroupfreqDF <- merge(usergroupfreq, touristgroupfreq, by="esgroup")
+write.csv(usergroupfreqDF, "regional_word_frequency/NumPhotos_byesgroup_anduser_amap.csv", row.names=FALSE)
+  
+  
+  
 ##########################
 # Tabulate frequency of the different words, by region
 
@@ -115,7 +173,6 @@ for(currfile in filelist){
 
 #save dataset
 write.csv(amapfreq, "regional_word_frequency/Frequency_of_google_labels_overscore60_Amap_ESclasses_byregion.csv", fileEncoding="UTF-8", row.names=FALSE)
-
 
 #covert to long format
 amapfreq_long <- gather(amapfreq, region, freq, grep("freq_", names(amapfreq)))
@@ -154,9 +211,15 @@ ggplot(codefreq_sub, aes(x=escode, y=freq_amap_escode_prop*100, fill=estype) ) +
 ggsave("regional_word_frequency/Barplot_Esclasses_byregion.pdf", height=21, width=14, units="cm")  
 
 ##########################
+#Do different users use different ES in each region? 
 
 
+#change to long format
+codetbl_long <- gather(escode, escode, grep("escode", names(codetbl)))
+names(codetbl_long)[1] <- "flickrid"
 
+#summarise number of photos representing each escode, in each region
+codefreq <- codetbl_long %>% group_by(region, escode) %>% summarise(freq_amap_escode=n_distinct(flickrid))
 
 
 
