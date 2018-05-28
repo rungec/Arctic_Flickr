@@ -53,6 +53,7 @@ rastfun <- function(es, curres, currfile) {
 #######################
 # Apply rastfun over es
 
+#drop rows for biotic fauna with pet
 
 #Biotic
 bioes <- c("biotic_fauna", "biotic_plant")

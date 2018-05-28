@@ -11,7 +11,7 @@ require(tidyverse)
 #require(ExPosition)
 #require(Rgraphviz)
 
-
+options(stringsAsFactors = FALSE)
 
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis/output"
 setwd(wd)
@@ -49,6 +49,7 @@ save(ctbl, file="Googlevision_contingency_table_nourban.Rdata")
 ###################
 #Plot heatmap ----
 ###################
+load(file="Googlevision_contingency_table_nourban.Rdata")
 require(ggplot2)
 wdf <- as.data.frame(ctbl)
 names(wdf) <- c("Word1", "Word2", "Freq")
@@ -77,6 +78,8 @@ require(igraph) #for network diagram
 require(wesanderson) #for colors
 
 ctbl <- load("Googlevision_contingency_table_nourban.Rdata")
+samplerows <- sample(1:nrow(ctbl), 1000)
+ctbl <- ctbl[samplerows, samplerows]
 
 #function to find words associated with a keyword
 findfun <- function(word, threshold_freq) {
@@ -148,7 +151,7 @@ plot(word_gr,
      #rescale=F, layout=l*0.5, 
      vertex.shape="circle", vertex.frame.color="#ffffff", 
      vertex.label.font=1, vertex.label.color="black", 
-     vertex.label.degree=0, vertex.label.cex=1, vertex.label.dist=1,
+     vertex.label.degree=0, vertex.label.cex=0.5, vertex.label.dist=1,
      edge.color="grey70")
 dev.off()
 
