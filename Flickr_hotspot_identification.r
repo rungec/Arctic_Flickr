@@ -1,4 +1,4 @@
-# Identifying spatial hotspots in Arctic visitation from Flickr data
+# Identifying (statistically) spatial hotspots in Arctic visitation from Flickr data
 # For a good explanation of this tool see   https://pro.arcgis.com/en/pro-app/tool-reference/spatial-statistics/h-how-hot-spot-analysis-getis-ord-gi-spatial-stati.htm 
 # Local Moran's I: the value of the feature being analyzed is NOT included in that analysis...only the neighboring values are.  Alternatively, when the local analysis is being done with Getis-Ord Gi*, the value of each feature is included in its own analysis.  In other words, the local mean for Moran's I includes only neighboring features, whereas the local mean for Getis-Ord Gi* includes all features, including the one in question.  
 # to determine a distance for the neighbourhood, you can calculate the global morans for different distances, and see there the z-score peaks (incremental spatial autocorrelation). Z-score peaks reflect distances where the spatial processes promoting clustering are most pronounced https://resources.arcgis.com/en/help/main/10.1/index.html#//005p0000004z000000
