@@ -1,13 +1,176 @@
 #Calculate some statistics on flickr tourism
+#Determines 
+# (a) what proportion of users are tourists/superusers, and 
+# (b) if they take photos in different places (regions, inside/outside cities) from locals/regular
+# (c) if they take longer or more regular trips than locals
 
-wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
+wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tables/summary_userprofile"
 setwd(wd)
 
 ### Setup ----
+library(sf)
 library(tidyverse)
 
+#########################
+#Setup files
+load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/output/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_urban.Rdata")
+#flickrshp, plus googletags, usertype, touristtype
+#drop geometry
+flickrshp <- st_set_geometry(flickrshp, NULL)
 
-ownerstats <- read.csv("tables/Flickr_user_trip_summary.csv", header=TRUE)
+#########################
+### 1. User stats ----
+
+#set up function
+user_propfun <- function(data, outname) {
+  user_prop1 <- lapply(unique(data$region), function(curreg){
+    a <- flickrshp[data$region==curreg,]
+    n_usertype <-  a %>% group_by(usertype) %>% 
+      summarise(n_users = n_distinct(owner) )
+    n_touristtype <-  a %>% group_by(touristtype_revised) %>% 
+      summarise(n_users = n_distinct(owner))
+    names(n_touristtype)[1] <- "usertype"						
+    n_usertype <- rbind(n_usertype, n_touristtype)						
+    perc_usertype <-  n_usertype$n_users/n_distinct(a$owner)
+    return(data.frame(region=curreg, n_usertype, perc_usertype))
+  })
+  user_prop1 <- do.call(rbind, user_prop1)				
+  write.csv(user_prop1, sprintf("Flickr_usertypes_revised_%s.csv", outname), row.names=FALSE)
+}
+
+#########################
+# 1a. What prop tourists in each region?
+#how many superusers, regular users in the different regions
+#how many tourists vs locals in the different regions
+
+#run user function on all data
+user_propfun(flickrshp, "by_region")
+#run user function outside cities
+flickrshp_sub <- flickrshp[is.na(flickrshp$InCity), ]
+user_propfun(flickrshp_sub, "by_region_outsideCities")
+
+# 1b. What % of superusers are tourists?
+user_prop2 <- flickrshp %>% group_by(usertype, touristtype_revised, InCity) %>% 
+  summarise(n_user_tourist_type = n_distinct(owner),
+            perc_user_tourist_type = n_distinct(owner)/n_distinct(flickrshp$owner))
+
+write.csv(user_prop2, "Flickr_usertypes_revised_overallproportions_inandoutsideCities.csv", row.names=FALSE)
+
+user_prop2 <- flickrshp %>% group_by(usertype, touristtype_revised) %>% 
+  summarise(n_user_tourist_type = n_distinct(owner),
+            perc_user_tourist_type = n_distinct(owner)/n_distinct(flickrshp$owner))
+
+write.csv(user_prop2, "Flickr_usertypes_revised_overallproportions.csv", row.names=FALSE)
+
+# 1c. is the number of tourists vs locals in superusers drawn from same distribution as regular users
+userinfoDF <- read.csv(paste0(dirname(wd), "/flickr_userlocation/Flickr_userinfo_tourist_or_superuser.csv"), fileEncoding="UTF-8", header = TRUE)
+#drop testuser
+userinfoDFnotest <- userinfoDF[!userinfoDF$usertype=="testuser", ] %>% droplevels() 
+u1 <- table(userinfoDFnotest$usertype, userinfoDFnotest$touristtype_revised)
+u1_chi <- chisq.test(u1, simulate.p.value = TRUE, B=10000)
+#combine domestic and locals
+#userinfoDFnoNAs$touristtype[userinfoDFnoNAs$touristtype=="domestic"] <- "local"
+# userinfoDFnoNAs <- droplevels(userinfoDFnoNAs)
+# u2 <- table(userinfoDFnoNAs$touristtype, userinfoDFnoNAs$usertype)
+# u2_chi <- chisq.test(u2, simulate.p.value = TRUE, B=10000)
+#save chisq results
+sink("Flickr_userstats_chisq_revised.txt")
+print("number of photos in Arctic cities (above 60N) inside=1, outside=0")
+print(summary(as.factor(flickrshp$InCity)))
+print("Is the number of tourists vs locals in superusers drawn from same distribution as regular users")
+print("drop test users")
+print(u1_chi)
+print("Actual n users")
+print(u1)
+print("Expected n users")
+print(u1_chi$expected)
+#print("combine locals and domestics")
+#print(u2_chi)
+#print("Actual n users")
+#print(u2)
+#print("Expected n users")
+#print(u2_chi$expected)
+
+#is the number of tourists vs locals in cities drawn from same distribution as outside cities
+flickrshp$InCity[is.na(flickrshp$InCity)] <- 0
+subdat <- flickrshp[flickrshp$usertype %in% c("regular", "superuser") & !is.na(flickrshp$touristtype_revised), ] 
+subdat <- droplevels(subdat)
+
+#do tourists take more photos inside cities
+u3 <- table(subdat$InCity, subdat$touristtype_revised)
+u3_chi <- chisq.test(u3, simulate.p.value = TRUE, B=10000)
+print("do tourists take more photos inside cities")
+print(u3_chi)
+print("Actual n photos")
+print(u3)
+print("Expected n photos")
+print(u3_chi$expected)
+
+# 1d. do tourists take more photos inside cities, excluding superusers
+subdatb <- subdat[!subdat$usertype=="superuser", ]  %>% droplevels()
+u3b <- table(subdatb$InCity, subdatb$touristtype_revised)
+u3b_chi <- chisq.test(u3b, simulate.p.value = TRUE, B=10000)
+print("do tourists take more photos inside cities, excluding superusers")
+print(u3b_chi)
+print("Actual n photos")
+print(u3b)
+print("Expected n photos")
+print(u3b_chi$expected)
+
+# 1e. do superusers take more photos inside cities
+u4 <- table(subdat$InCity, subdat$usertype)
+u4_chi <- chisq.test(u4, simulate.p.value = TRUE, B=10000)
+print("do superusers take more photos inside cities")
+print(u4_chi)
+print("Actual n photos")
+print(u4)
+print("Expected n photos")
+print(u4_chi$expected)
+
+# 1f. are there more tourists or locals outside cities
+user_prop5 <- subdat %>% droplevels() %>% group_by(InCity, touristtype_revised) %>% 
+  summarise(n_user_tourist_type = n_distinct(owner))
+u5 <- xtabs(n_user_tourist_type ~ InCity + touristtype_revised, data=user_prop5)
+u5_chi <- chisq.test(u5, simulate.p.value = TRUE, B=10000)
+print("are there more tourists inside cities")
+print(u5_chi)
+print("Actual n users")
+print(u5)
+print("Expected n users")
+print(u5_chi$expected)
+
+# #are there more tourists or locals outside cities #drop domestic
+# user_prop5b <- subdat[!subdat$touristtype=="domestic", ] %>% droplevels() %>% group_by(InCity, touristtype) %>% 
+#   summarise(n_user_tourist_type = n_distinct(owner))
+# u5b <- xtabs(n_user_tourist_type ~ InCity + touristtype, data=user_prop5b)
+# u5b_chi <- chisq.test(u5b, simulate.p.value = TRUE, B=10000)
+#   print("are there more tourists inside cities, excluding domestic")
+#   print(u5b_chi)
+#   print("Actual n users")
+#   print(u5b)
+#   print("Expected n users")
+#   print(u5b_chi$expected)
+
+#are there more regular or superusers outside cities
+user_prop6 <- subdat %>% droplevels() %>% group_by(InCity, usertype) %>% 
+  summarise(n_user_user_type = n_distinct(owner))
+u6 <- xtabs(n_user_user_type ~ InCity + usertype, data=user_prop6)
+u6_chi <- chisq.test(u6, simulate.p.value = TRUE, B=10000)
+print("are there more superusers inside cities")
+print(u6_chi)
+print("Actual n users")
+print(u6)
+print("Expected n users")
+print(u6_chi$expected)
+sink()  
+
+
+
+
+
+#############################
+#Stats on trip distance ----
+ownerstats <- read.csv("Flickr_user_trip_summary.csv", header=TRUE)
 
 #function to calculate some summary stats
 statsfun <- function(data) {
@@ -62,7 +225,7 @@ usertripstats <- data.frame(superusers_pertrip=statsfun(superuser_trips),
 
 
 #are the groups statistically different?
-sink("tables/Flickr_user_trip_statistics.txt")
+sink("Flickr_user_trip_statistics.txt")
 
 print("see script Flickr_userprofiling_2_stats.r")
 print("")
