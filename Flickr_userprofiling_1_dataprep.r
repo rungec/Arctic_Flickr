@@ -74,8 +74,9 @@ lookup <- read_excel("tables/Flickr_user_statedlocation_unique_OS.xlsx", sheet="
 lookup <- lookup[!duplicated(lookup$x),]
 userinfoDF <- read.csv("tables/Flickr_user_statedlocation.csv", header=TRUE, fileEncoding="UTF-8")
 userinfoDF <- merge(userinfoDF, lookup, by.x="location", by.y="x", all.x=TRUE) 
-userinfoDF <- userinfoDF[, c("owner", "location", "User_type")]
+userinfoDF <- userinfoDF[, c("owner", "location", "User_type", "User_type_revised", "local_country")]
 names(userinfoDF)[3] <- "touristtype"
+names(userinfoDF)[4] <- "touristtype_revised"
 userinfoDF$touristtype[userinfoDF$touristtype=="NA"] <- NA
 
 #add column listing the user type
