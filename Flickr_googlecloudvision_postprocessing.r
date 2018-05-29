@@ -140,7 +140,7 @@ flickrshp[["flickr_tags"]] <- NULL
 flickrshp[["title_tags"]] <- NULL
 
 #load userinfo
-userinfoDF <- read.csv(paste0(dirname(wd), "/tables/Flickr_userinfo_tourist_or_superuser.csv"), fileEncoding="UTF-8", header=TRUE)
+userinfoDF <- read.csv(paste0(dirname(wd), "/tables/flickr_userlocation/Flickr_userinfo_tourist_or_superuser.csv"), fileEncoding="UTF-8", header=TRUE)
 
 #load and combine google labels for each region
 filelist <- list.files("output/byregion/", pattern="Google_labels_summary_foreachphoto_", full.names = TRUE)
