@@ -19,9 +19,20 @@ setwd(wd)
 ########################
 #Preliminary processing ----
 
+#function to find words associated with a keyword
+findfun <- function(word, threshold_freq) {
+  a <- ctbl[which(dimnames(ctbl)$Var2==word), ] #pull the 'word' row
+  assocwords <- names(a[a > threshold_freq]) #drop words with freq less than threshold_freq
+  return(assocwords)
+} 
+
 #load data
 load("Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_urban.Rdata")
 #flickrshp - flickr data for each photo plus user classifications, what region and whether urban
+#drop test users
+flickrshp <- flickrshp[flickrshp$usertype!="testuser", ]
+#drop rows with no google words (this could be due to no url, or the user having taken down the photo or made it private)
+flickrshp <- flickrshp[ rowSums(is.na( flickrshp[, grep("googletag", names(flickrshp))] )) < 20, ] #drop rows with all NAs
 
 #clip to AMAP boundaries - I updated the Yamal borders, and clipped out any areas south of 60N. 
 amap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/AMAP_updatedRussia_clipto60N.shp")
@@ -33,15 +44,14 @@ save(flickramap, file="Flickr_Artic_60N_plus_flickrandgooglelabels_amap.Rdata")
 
 load("Flickr_Artic_60N_plus_flickrandgooglelabels_amap.Rdata")
 
-#drop test users
-flickramap <- flickramap[flickramap$usertype!="testuser", ]
 
-#drop rows with no google words (this could be due to no url, or the user having taken down the photo or made it private)
-flickramap <- flickramap[ rowSums(is.na( flickramap[, grep("googletag", names(flickramap))] )) < 20, ] #drop rows with all NAs
+####################################
+# Main processing ----
+# Output tables of the google labels by region
 
-#output remaining google vision words
+#output the frequency of google vision words used in the amap boundaries
 gwords <- flickramap %>% st_set_geometry(NULL) %>% 
-          select(c("id", "region", "usertype", "touristtype", grep("googletag", names(flickramap), value=TRUE))) 
+          select(c("id", "region", "usertype", "touristtype_revised", grep("googletag", names(flickramap), value=TRUE))) 
 gwfreqa <- unlist(gwords[, grep("googletag", names(flickramap), value=TRUE)]) 
 gwfreq <- plyr::count(gwfreqa)
 write.csv(gwfreq, "regional_word_frequency/Frequency_of_google_labels_overscore60_Amap.csv", fileEncoding="UTF-8", row.names=FALSE)
@@ -53,8 +63,7 @@ for(curregion in unique(gwords$region)) {
   write.csv(gwfreq, sprintf("byregion/Frequency_of_google_labels_overscore60_Amap_%s.csv", curregion), fileEncoding="UTF-8", row.names=FALSE)
 }
 
-########################
-#Tabulate freq of photos reprenting ES ----
+#Tabulate freq of photos reprenting each ES 
 
 #I then manually classified each of the remaining words as either ecosystem feature, activity, or na
 #in the corresponding .xlsx file
@@ -112,37 +121,37 @@ codefreq_wide <- codefreq %>%
 write.csv(codefreq_wide, "regional_word_frequency/Frequency_of_ESclasses_amap_byregion_wide.csv", row.names=FALSE)
 
 ########################
-#Tabulate freq of photos by user ----
+# User profiling ----
+# Tabulate freq of photos by user
 
 #how many photos do each of the different user types take
 nusers_inregion <- codetbl %>% group_by(region) %>% summarise(nusers_region=n_distinct(id))
 nusers_inregion_type <- codetbl %>% group_by(region, usertype) %>% summarise(nusers_region_type=n_distinct(id))
-nusers_inregion_type_tourist <- codetbl %>% group_by(region, usertype, touristtype) %>% summarise(nusers_region_type_tourist=n_distinct(id))
+nusers_inregion_type_tourist <- codetbl %>% group_by(region, usertype, touristtype_revised) %>% summarise(nusers_region_type_tourist=n_distinct(id))
 nuserDF <- merge(nusers_inregion, nusers_inregion_type, by=c("region"), all.y=TRUE)
 nuserDF <- merge(nuserDF, nusers_inregion_type_tourist, by=c("region", "usertype"), all.y=TRUE)
 nuserDF$propinregion_bytype <- nuserDF$nusers_region_type/nuserDF$nusers_region
 nuserDF$propinregion_tourist <- nuserDF$nusers_region_type_tourist/nuserDF$nusers_region_type
 write.csv(nuserDF, "regional_word_frequency/NumPhotos_byregion_anduser_amap.csv", row.names=FALSE)
 
-########################
-#Do different users use different ES in each region? ----
+#Do different users use different ES in each region? 
 #summarise number of photos representing each escode, in each usertype (regular/superuser)
 usercodefreq <- codetbl_long %>% group_by(usertype, escode) %>% 
                       summarise(freq_amap_escode=n_distinct(flickrid)) %>%
                       spread(usertype, freq_amap_escode)
-touristcodefreq <- codetbl_long %>% group_by(touristtype, escode) %>% 
+touristcodefreq <- codetbl_long %>% group_by(touristtype_revised, escode) %>% 
                       summarise(freq_amap_escode=n_distinct(flickrid)) %>%
-                      spread(touristtype, freq_amap_escode)
+                      spread(touristtype_revised, freq_amap_escode)
 usercodefreqDF <- merge(usercodefreq, touristcodefreq, by="escode")
 nphotos_byusers <- codetbl_long %>% group_by(usertype) %>% 
   summarise(nphotos=n_distinct(flickrid)) %>% data.frame()
-nphotos_bytourists <- codetbl_long %>% group_by(touristtype) %>% 
+nphotos_bytourists <- codetbl_long %>% group_by(touristtype_revised) %>% 
   summarise(nphotos=n_distinct(flickrid, na.rm=TRUE)) %>% data.frame()
 usercodefreqDF$regular_prop <- usercodefreqDF$regular/nphotos_byusers[nphotos_byusers$usertype=="regular", "nphotos"]
 usercodefreqDF$superuser_prop <- usercodefreqDF$superuser/nphotos_byusers[nphotos_byusers$usertype=="superuser", "nphotos"]
-usercodefreqDF$domestic_prop <- usercodefreqDF$domestic/nphotos_bytourists[nphotos_bytourists$touristtype %in% "domestic", "nphotos"]
-usercodefreqDF$local_prop <- usercodefreqDF$local/nphotos_bytourists[nphotos_bytourists$touristtype %in% "local", "nphotos"]
-usercodefreqDF$tourist_prop <- usercodefreqDF$tourist/nphotos_bytourists[nphotos_bytourists$touristtype %in% "tourist", "nphotos"]
+#usercodefreqDF$domestic_prop <- usercodefreqDF$domestic/nphotos_bytourists[nphotos_bytourists$touristtype_revised %in% "domestic", "nphotos"]
+usercodefreqDF$local_prop <- usercodefreqDF$local/nphotos_bytourists[nphotos_bytourists$touristtype_revised %in% "local", "nphotos"]
+usercodefreqDF$tourist_prop <- usercodefreqDF$tourist/nphotos_bytourists[nphotos_bytourists$touristtype_revised %in% "tourist", "nphotos"]
 usercodefreqDF <- rbind(usercodefreqDF, c("total_nphotos", rep(c(nphotos_byusers$nphotos, nphotos_bytourists$nphotos), times=2)))  
 write.csv(usercodefreqDF, "regional_word_frequency/NumPhotos_byescode_anduser_amap.csv", row.names=FALSE)
 
@@ -158,14 +167,15 @@ codetbl_long$esgroup <- sapply(codetbl_long$escode, function(x) {
   usergroupfreq <- codetbl_long %>% group_by(usertype, esgroup) %>% 
     summarise(freq_amap_esgroup=n_distinct(flickrid)) %>%
     spread(usertype, freq_amap_esgroup)
-  touristgroupfreq <- codetbl_long %>% group_by(touristtype, esgroup) %>% 
+  touristgroupfreq <- codetbl_long %>% group_by(touristtype_revised, esgroup) %>% 
     summarise(freq_amap_esgroup=n_distinct(flickrid)) %>%
-    spread(touristtype, freq_amap_esgroup)
+    spread(touristtype_revised, freq_amap_esgroup)
 usergroupfreqDF <- merge(usergroupfreq, touristgroupfreq, by="esgroup")
 write.csv(usergroupfreqDF, "regional_word_frequency/NumPhotos_byesgroup_anduser_amap.csv", row.names=FALSE)
   
 ##########################
-# Tabulate frequency of the different words, by region ----
+# Region profiling ----
+# Tabulate frequency of the different words, by region 
 
 # make table of the frequency of google words in each region
 filelist <- list.files(path="byregion/", pattern="Frequency_of_google_labels_overscore60_Amap")
@@ -230,42 +240,5 @@ esDF <- do.call(rbind, esL)
 estbl <- table(esDF)
 write.csv(estbl, "regional_word_frequency/ESclasses_contingency_table_nphotos_amap.csv", row.names=TRUE)
 
-############################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#function to find words associated with a keyword
-findfun <- function(word, threshold_freq) {
-  a <- ctbl[which(dimnames(ctbl)$Var2==word), ] #pull the 'word' row
-  assocwords <- names(a[a > threshold_freq]) #drop words with freq less than threshold_freq
-  return(assocwords)
-} 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#END###########################
 
