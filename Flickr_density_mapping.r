@@ -5,8 +5,10 @@
 
 
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/density_mapping/"
+#wd <- "/data/Claire/rasters/density_mapping/"
 setwd(wd)
 wd2 <- "D:/Box Sync/Arctic/Data"
+#wd2 <- "/data/Claire/rasters"
 
 ### Setup ----
 library(sf)
@@ -19,7 +21,7 @@ library(rgdal)
 #load country borders shp
 #worldmap <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBordersESRI_60degreesN_lambert.shp")
 #load bounding box shp
-boundary60N <- readOGR(paste0(wd2, "/Boundaries/Arctic_circle/60degreesN", "60degreesN"))
+boundary60N <- readOGR(paste0(wd2, "/Boundaries/Arctic_circle/60degreesN"), "60degreesN")
 #load flickr points as .shp
 load(paste0(dirname(wd), "/tag_analysis/output/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_urban.Rdata"))
 #flickrshp
@@ -38,12 +40,6 @@ flickrshp$owner_date <- paste(flickrshp$owner, flickrshp$datetkn, sep="_")
 #drop testusers
 flickrshpr <- flickrshp[flickrshp$usertype %in% c("superuser", "regular"), ] 
 
-#convert to .shp
-st_write(flickrshpr, paste0(wd2, "/Flickr/Flickr_Artic_60N_plus_flickrandgooglelabels_notestusers_2004to2017.shp"))
-
-#read in shp
-flickrshpr <- readOGR(paste0(wd2, "/Flickr/Flickr_Artic_60N_plus_flickrandgooglelabels_notestusers_2004to2017.shp"))
-
 
 ##########################
 ### Main processing 
@@ -52,20 +48,20 @@ flickrshpr <- readOGR(paste0(wd2, "/Flickr/Flickr_Artic_60N_plus_flickrandgoogle
 #set up function to rasterize points
 rastFunPUD <- function(data, curres, currfolder, currphotos, currfile){
   rasttemplate <- raster(xmn=-3335000, xmx=3335000, ymn=-3335000, ymx=3335000, res=curres, crs=rcrs)
-  if(file.exists(sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", wd2, currfile))==FALSE){ 
-    rast60N <- rasterize(boundary60N, rasttemplate, filename=sprintf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", currfile))
+  if(file.exists(sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%smres.tif", wd2, curres))==FALSE){ 
+    rast60N <- rasterize(boundary60N, rasttemplate, filename=sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%smres.tif", wd2, curres))
   } else {
-    rast60N <- raster(sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%sres.tif", wd2, currfile))
+    rast60N <- raster(sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%smres.tif", wd2, currfile))
   }
   rast60N[rast60N==1] <- 0
   densRast <- rasterize(data, rast60N, fun=function(x, ...){ length(unique(x))}, field="owner_date", update=TRUE, filename=sprintf("%s/Flickr_%s_per%scell.tif", currfolder, currphotos, currfile), overwrite=TRUE)
 }
 
 #maps of all points across all time
-rast250m <- rastFunPUD(flickrshpr, 250, "static_rasters_pud", "allseasons_pud", "250m")
-rast1km <- rastFunPUD(flickrshpr, 1000, "static_rasters_pud", "allseasons_pud", "1km")
-rast5km <- rastFunPUD(flickrshpr, 5000, "static_rasters_pud", "allseasons_pud", "5km")
-rast10km <- rastFunPUD(flickrshpr, 10000, "static_rasters_pud", "allseasons_pud", "10km")
+rast250m <- rastFunPUD(flickrshpr, 250, "static_rasters_pud", "allseasons_pud", "250")
+rast1km <- rastFunPUD(flickrshpr, 1000, "static_rasters_pud", "allseasons_pud", "1k")
+rast5km <- rastFunPUD(flickrshpr, 5000, "static_rasters_pud", "allseasons_pud", "5k")
+rast10km <- rastFunPUD(flickrshpr, 10000, "static_rasters_pud", "allseasons_pud", "10k")
 
 #map photos from winter (Nov-Apr)
 flickrshp_winter <- flickrshpr[flickrshpr$month %in% c("11", "12", "01", "02", "03", "04"), ]
