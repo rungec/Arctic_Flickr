@@ -21,7 +21,7 @@ library(rgdal)
 #load country borders shp
 #worldmap <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBordersESRI_60degreesN_lambert.shp")
 #load bounding box shp
-boundary60N <- readOGR(paste0(wd2, "/Boundaries/Arctic_circle/60degreesN"), "60degreesN")
+boundary60N <- read_sf(paste0(wd2, "/Boundaries/Arctic_circle/60degreesN"), "60degreesN")
 #load flickr points as .shp
 load(paste0(dirname(wd), "/tag_analysis/output/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_urban.Rdata"))
 #flickrshp
@@ -29,7 +29,7 @@ load(paste0(dirname(wd), "/tag_analysis/output/Flickr_Artic_60N_plus_flickrandgo
 ##########################
 ### Preliminary processing ----
 #turn boundary 60N into a raster
-rcrs <- crs(boundary60N)
+rcrs <- st_crs(boundary60N)
 
 #drop photos pre 2004 and from 2018 or later
 flickrshp <- flickrshp[flickrshp$year %in% as.factor(2004:2017), ]
@@ -47,7 +47,7 @@ flickrshpr <- flickrshp[flickrshp$usertype %in% c("superuser", "regular"), ]
 # Make Rasters counting the number of photo-user-days (PUD) per cell ----
 #set up function to rasterize points
 rastFunPUD <- function(data, curres, currfolder, currphotos, currfile){
-  rasttemplate <- raster(xmn=-3335000, xmx=3335000, ymn=-3335000, ymx=3335000, res=curres, crs=rcrs)
+  rasttemplate <- raster(xmn=-3335000, xmx=3335000, ymn=-3335000, ymx=3335000, res=curres, crs=rcrs$proj4string)
   if(file.exists(sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%smres.tif", wd2, curres))==FALSE){ 
     rast60N <- rasterize(boundary60N, rasttemplate, filename=sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%smres.tif", wd2, curres))
   } else {
