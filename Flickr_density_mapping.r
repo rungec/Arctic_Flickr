@@ -51,17 +51,17 @@ rastFunPUD <- function(data, curres, currfolder, currphotos, currfile){
   if(file.exists(sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%smres.tif", wd2, curres))==FALSE){ 
     rast60N <- rasterize(boundary60N, rasttemplate, filename=sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%smres.tif", wd2, curres))
   } else {
-    rast60N <- raster(sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%smres.tif", wd2, currfile))
+    rast60N <- raster(sprintf("%s/Boundaries/Arctic_circle/60degreesN/60degreesN_%smres.tif", wd2, curres))
   }
   rast60N[rast60N==1] <- 0
   densRast <- rasterize(data, rast60N, fun=function(x, ...){ length(unique(x))}, field="owner_date", update=TRUE, filename=sprintf("%s/Flickr_%s_per%scell.tif", currfolder, currphotos, currfile), overwrite=TRUE)
 }
 
 #maps of all points across all time
-rast250m <- rastFunPUD(flickrshpr, 250, "static_rasters_pud", "allseasons_pud", "250")
-rast1km <- rastFunPUD(flickrshpr, 1000, "static_rasters_pud", "allseasons_pud", "1k")
-rast5km <- rastFunPUD(flickrshpr, 5000, "static_rasters_pud", "allseasons_pud", "5k")
-rast10km <- rastFunPUD(flickrshpr, 10000, "static_rasters_pud", "allseasons_pud", "10k")
+rast250m <- rastFunPUD(flickrshpr, 250, "static_rasters_pud", "allseasons_pud", "250m")
+rast1km <- rastFunPUD(flickrshpr, 1000, "static_rasters_pud", "allseasons_pud", "1km")
+rast5km <- rastFunPUD(flickrshpr, 5000, "static_rasters_pud", "allseasons_pud", "5km")
+rast10km <- rastFunPUD(flickrshpr, 10000, "static_rasters_pud", "allseasons_pud", "10km")
 
 #map photos from winter (Nov-Apr)
 flickrshp_winter <- flickrshpr[flickrshpr$month %in% c("11", "12", "01", "02", "03", "04"), ]
@@ -72,14 +72,14 @@ rast10kmsummer <- rastFunPUD(flickrshp_summer, 10000, "static_rasters_pud", "sum
 
 
 #annual maps
-lapply(c(2001:2017), function(curryr) {
+lapply(c(2004:2017), function(curryr) {
   data <- flickrshpr[flickrshpr$year==curryr, ]
-  currfile <- paste0(curryr, "_5km")
+  currfile <- paste0(curryr, "_5000m")
   rastFunPUD(data=data, curres=5000, currfolder="annual_rasters_pud", currphotos="allseasons_pud", currfile=currfile)
 })
 
 #annual maps, high res
-lapply(c(2001:2017), function(curryr) {
+lapply(c(2004:2017), function(curryr) {
   data <- flickrshpr[flickrshpr$year==curryr, ]
   currfile <- paste0(curryr, "_250m")
   rastFunPUD(data=data, curres=250, currfolder="annual_rasters_pud", currphotos="allseasons_pud", currfile=currfile)
@@ -87,7 +87,7 @@ lapply(c(2001:2017), function(curryr) {
 
 #annual maps - tourists, high res
 flickrshpt <- flickrshpr[flickrshpr$touristtype=="tourist"]
-lapply(c(2001:2017), function(curryr) {
+lapply(c(2004:2017), function(curryr) {
   data <- flickrshpt[flickrshpt$year==curryr, ]
   currfile <- paste0(curryr, "_250m")
   rastFunPUD(data=data, curres=250, currfolder="annual_rasters_pud_tourists", currphotos="allseasons_pud_tourists", currfile=currfile)
@@ -95,7 +95,7 @@ lapply(c(2001:2017), function(curryr) {
 
 #annual maps - locals, high res
 flickrshpl <- flickrshpr[flickrshpr$touristtype=="local"]
-lapply(c(2001:2017), function(curryr) {
+lapply(c(2004:2017), function(curryr) {
   data <- flickrshpl[flickrshpl$year==curryr, ]
   currfile <- paste0(curryr, "_250m")
   rastFunPUD(data=data, curres=250, currfolder="annual_rasters_pud_locals", currphotos="allseasons_pud_locals", currfile=currfile)
