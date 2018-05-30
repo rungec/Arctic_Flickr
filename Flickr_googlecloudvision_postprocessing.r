@@ -1,5 +1,5 @@
 #this script summarises the Google Cloud Vision https://cloud.google.com/vision/ tag for the Arctic Flickr photos
-#follows on from Flickr_googlecloudvision_label.r
+#follows on from Flickr_googlecloudvision_label.r and preludes Flickr_googlecloudvision_datasummary.r
 
 ### Set up libraries ----
 library(sf)
@@ -140,6 +140,7 @@ flickrshp[["flickr_tags"]] <- NULL
 flickrshp[["title_tags"]] <- NULL
 
 #load userinfo
+#this file was generated in Flickr_userprofiling_1_dataprep.r
 userinfoDF <- read.csv(paste0(dirname(wd), "/tables/flickr_userlocation/Flickr_userinfo_tourist_or_superuser.csv"), fileEncoding="UTF-8", header=TRUE)
 
 #load and combine google labels for each region
