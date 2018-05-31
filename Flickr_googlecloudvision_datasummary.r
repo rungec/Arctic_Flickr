@@ -91,7 +91,7 @@ names(codetbl)[grep("googletag", names(codetbl))] <- paste0("escode", 1:20)
 
 #add to flickramap
 flickramap <- merge(flickramap, codetbl[, c("id", grep("escode", names(codetbl), value=TRUE))], by.x="id", by.y="id", all.x=TRUE)
-save(flickramap, file="Flickr_Artic_60N_plus_flickrandgooglelabels_amap_escodes.Rdata")
+save(flickramap, file="Flickr_Artic_60N_plus_flickrandgooglelabels_escodes_amap.Rdata")
 
 #change to long format
 codetbl_long <- gather(codetbl, escode1, escode, grep("escode", names(codetbl)))
@@ -232,14 +232,41 @@ ggsave("regional_word_frequency/Barplot_Esclasses_byregion.pdf", height=21, widt
 codetbl <- flickramap[, c(grep("escode", names(flickramap), value=TRUE))]  %>% st_set_geometry(NULL)
 
 esL <- lapply(1:nrow(codetbl), function(i) {
-  currow <- unique(unname(unlist(codetbl[i, !is.na(codetbl[i,])]))) 
-  d <- expand.grid(currow, currow)
+  currow <- unname(unlist(codetbl[i, !is.na(codetbl[i,])])) %>% unique()
+  d <- expand.grid(currow, currow, stringsAsFactors = FALSE)
+  d <- d[d$Var1!=d$Var2, ]
   return(d)
 })
 
 esDF <- do.call(rbind, esL)
 estbl <- table(esDF)
-write.csv(estbl, "regional_word_frequency/ESclasses_contingency_table_nphotos_amap.csv", row.names=TRUE)
+estbl2 <- data.frame(estbl)
+names(estbl2) <- c("es1", "es2", "Freq")
+write.csv(estbl2, "regional_word_frequency/ESclasses_contingency_table_nphotos_amap.csv", row.names=TRUE)
+
+###########################
+#Plot contingency table
+require(ggplot2)
+ggplot(estbl2, aes(es1, es2)) +
+  geom_tile(aes(fill=Freq)) +
+  scale_fill_gradient(name = 'co-occurence', low = 'royalblue', high = 'gold', trans='log10') + 
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), 
+        axis.text.x =element_text(size=1, angle=90, hjust=1), axis.text.y=element_text(size=1))
+ggsave("Googlevision_ecosystemservices_contingency_table_heatmap.pdf", width=14, height=14, units=c("in"))
+
+
+require(corrplot)
+estbl3 <- log(estbl)
+estbl3[estbl3==Inf | estbl3==-Inf] <- 0
+pdf("Googlevision_ecosystemservices_contingency_table_corrplot_log.pdf", width=14, height=14)
+corrplot(estbl3, method='color', type='lower', diag = FALSE, order="original", tl.cex=1, tl.col = "black", tl.srt = 45, is.corr = FALSE)
+dev.off()
+pdf("Googlevision_ecosystemservices_contingency_table_corrplot.pdf", width=14, height=14)
+corrplot(estbl, method='color', type='lower', diag = FALSE, order="original", tl.cex=1, tl.col = "black", tl.srt = 45, is.corr = FALSE)
+dev.off()
+
+
+
 
 #END###########################
 
