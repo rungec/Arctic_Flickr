@@ -7,6 +7,7 @@
 require(sf)
 require(tidyverse)
 require(raster)
+require(rgdal)
 
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/es_mapping"
 #wd <- "/data/Claire/rasters/es_mapping"
@@ -31,7 +32,7 @@ flickramap$owner_date <- paste(flickramap$owner, flickramap$datetkn, sep="_")
 #worldmap <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBordersESRI_60degreesN_lambert.shp")
 #load AMAP boundaries - I updated the Yamal borders, and clipped out any areas south of 60N. 
 amap <- read_sf(paste0(wd2, "/Boundaries/Arctic_circle/AMAP/AMAP_updatedRussia_clipto60N.shp"))
-rcrs <- crs(amap)
+rcrs <- st_crs(amap)
 
 #######################
 #Function to rasterise es where the value in each cell = PUD
@@ -51,7 +52,7 @@ rastfun <- function(data, es, curres, currfile) {
     }
     rastamap[rastamap==1] <- 0
        #fill with pud
-    esrast <- rasterize(data_es, rastamap, fun=function(x, ...){ length(unique(x))}, field="owner_date", update=TRUE, filename=sprintf("Flickr_%s_PUDper%scell.tif", currfile, currres), overwrite=TRUE)
+    esrast <- rasterize(data_es, rastamap, fun=function(x, ...){ length(unique(x))}, field="owner_date", update=TRUE, filename=sprintf("Flickr_%s_PUDper%scell.tif", currfile, curres), overwrite=TRUE)
   }
 
 #######################
