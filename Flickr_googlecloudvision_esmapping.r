@@ -18,7 +18,7 @@ wd2 <- "D:/Box Sync/Arctic/Data"
 ##########################
 ### Preliminary processing ----
 
-load("Flickr_Artic_60N_plus_flickrandgooglelabels_escodes_amap.Rdata")
+load(paste0(dirname(wd), "/tag_analysis/output/Flickr_Artic_60N_plus_flickrandgooglelabels_escodes_amap.Rdata"))
 #photos from amap region, 
 #regular and super users only, 
 #dropped rows with no google vision labels
@@ -56,13 +56,14 @@ rastfun <- function(data, es, curres, currfile) {
 
 #######################
 # Apply rastfun over es
-escats <- unique(flickramap[, names(flickramap) %in% grep("escode", names(data), value=TRUE)])
-  
+escats <- read.csv(paste0(dirname(wd), "/tag_analysis/output/regional_word_frequency/NumPhotos_byescode_anduser_amap.csv"), header=TRUE, stringsAsFactors = FALSE)
+escats <- escats$escode[1:(nrow(escats)-2)]
+
 lapply(escats, function(x) {
   rastfun(flickramap, x, 10000, x)
 } ) 
   
-#drop rows for biotic fauna with pet
+#drop rows for biotic fauna with pet?
 
 #######################
 # Combined es rasters 
@@ -79,16 +80,45 @@ biowildlife <- c("biotic_fauna", "biotic_reptile", "biotic_insect", "biotic_amph
 rast <- rastfun(flickramap, bioes, 10000, "biotic_wildlife")
 
 #abiotic
-dput(escats)
+abiotic_all <- c("abiotic_aurora", "abiotic_coastal", "abiotic_geology", "abiotic_ice", 
+"abiotic_volcanic", "abiotic_water") 
+rast <- rastfun(flickramap, abiotic_all, 10000, "abiotic_all")
 
 #harvesting and hunting
-harvest_es <- c()
+harvest_es <- c("biotic_harvesting_animal", "biotic_harvesting_berry", 
+                "biotic_harvesting_fish", "biotic_harvesting_fruit", 
+                "biotic_harvesting_grain", "biotic_harvesting_hay", 
+                "biotic_harvesting_mushroom", "biotic_harvesting_nut", 
+                "biotic_harvesting_produce", "biotic_harvesting_seafood", 
+                "biotic_harvesting_vegetable", "biotic_harvesting_wood")
 rast <- rastfun(flickramap, harvest_es, 10000, "harvest_all")
 harvestorhunt_es <- c(harvest_es, "recreation_hunting", "recreation_fishing")
-rast <- rastfun(flickramap, harvest_es, 10000, "harvesthuntingfishing")
+rast <- rastfun(flickramap, harvest_es, 10000, "harvesthuntingorfishing_all")
 
 #recreation
-recreation <- c()
+recreation <- c("recreation_air", "recreation_bonfire", "recreation_camping", 
+                "recreation_cycling", "recreation_diving", "recreation_dogsled", 
+                "recreation_fishing", "recreation_general", "recreation_hiking", 
+                "recreation_horseriding", "recreation_hunting", "recreation_mountainsports", 
+                "recreation_offroad", "recreation_photography", "recreation_snowsport", 
+                "recreation_tourism", "recreation_watersports")
 rast <- rastfun(flickramap, recreation, 10000, "recreation_all")
 
 #END######################
+
+
+c("abiotic_aurora", "abiotic_coastal", "abiotic_geology", "abiotic_ice", 
+  "abiotic_volcanic", "abiotic_water", "biotic_amphibian", "biotic_ecosystem", 
+  "biotic_fauna", "biotic_fungus", "biotic_harvesting_animal", 
+  "biotic_harvesting_berry", "biotic_harvesting_fish", "biotic_harvesting_fruit", 
+  "biotic_harvesting_grain", "biotic_harvesting_hay", "biotic_harvesting_mushroom", 
+  "biotic_harvesting_nut", "biotic_harvesting_produce", "biotic_harvesting_seafood", 
+  "biotic_harvesting_vegetable", "biotic_harvesting_wood", "biotic_insect", 
+  "biotic_managed", "biotic_marine", "biotic_plant", "biotic_reptile", 
+  "biotic_snail", "biotic_traces", "no", "pet", "recreation_air", 
+  "recreation_bonfire", "recreation_camping", "recreation_cycling", 
+  "recreation_diving", "recreation_dogsled", "recreation_fishing", 
+  "recreation_general", "recreation_hiking", "recreation_horseriding", 
+  "recreation_hunting", "recreation_mountainsports", "recreation_offroad", 
+  "recreation_photography", "recreation_snowsport", "recreation_tourism", 
+  "recreation_watersports")
