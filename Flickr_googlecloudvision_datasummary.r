@@ -229,9 +229,10 @@ ggsave("regional_word_frequency/Barplot_Esclasses_byregion.pdf", height=21, widt
 
 ############################
 #Make a contingency table of how often the different EScodes are associated in the one photo ----
+codetbl <- flickramap[, c(grep("escode", names(flickramap), value=TRUE))]  %>% st_set_geometry(NULL)
 
 esL <- lapply(1:nrow(codetbl), function(i) {
-  currow <- unname(unlist(codetbl[i, !is.na(codetbl[i,])])) 
+  currow <- unique(unname(unlist(codetbl[i, !is.na(codetbl[i,])]))) 
   d <- expand.grid(currow, currow)
   return(d)
 })
