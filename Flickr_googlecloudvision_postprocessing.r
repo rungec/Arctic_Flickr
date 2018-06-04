@@ -126,7 +126,7 @@ flickrshp <- merge(flickrshp, userinfoDF, by.x="owner", by.y="owner", all.x=TRUE
 flickrshp <- merge(flickrshp, allphotos, by.x="id", by.y="id", all.x=TRUE)
 
 #Create a new column, owner_date
-flickrshp$owner_date <- paste(flickrshp$owner, flickrshp$datetkn, sep="_")
+flickrshp$owner_date <- paste(flickrshp$owner, as.Date(flickrshp$datetaken), sep="_")
 
 #save
 save(flickrshp, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo.Rdata")
