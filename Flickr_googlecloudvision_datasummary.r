@@ -16,8 +16,19 @@ options(stringsAsFactors = FALSE)
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis/googlevision"
 setwd(wd)
 
+#flickramap
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")
+
 ########################
 #Preliminary processing ----
+#set up functions
+
+#set up wordcloud plotfun
+wordplotfun <- function(words, freq, outname, ...){
+  png(filename = sprintf("googlevision/byregion/Google_labels_wordcloud_%s.png", outname), width=14, height=14, units="in", type='windows', antialias = "cleartype", res=600)
+  wordcloud(words=words, freq=freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman", ...)
+  dev.off()
+}
 
 #function to find words associated with a keyword
 findfun <- function(word, threshold_freq) {
@@ -26,21 +37,36 @@ findfun <- function(word, threshold_freq) {
   return(assocwords)
 } 
 
-#load data
-load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_tidy.Rdata")
-#flickrshp - flickr data for each photo plus user classifications, what region and whether urban
-#drop rows with no google words (this could be due to no url, or the user having taken down the photo or made it private)
-flickrshp <- flickrshp[ rowSums(is.na( flickrshp[, grep("googletag", names(flickrshp))] )) < 20, ] #drop rows with all NAs
+########################
+#Calculate some summary stats
+########################
 
-#clip to AMAP boundaries - I updated the Yamal borders, and clipped out any areas south of 60N. 
-amap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/AMAP_updatedRussia_clipto60N.shp")
-flickramap <- st_intersection(flickrshp, amap)
-save(flickramap, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")
+# Frequency of all tags scoring above 60
+for(i in seq_along(regionlist)){
+  curregion <- regionlist[i]
+  curregname <- names(curregion)
+  summaryDF <- read.csv(sprintf("googlevision/byregion/Google_labels_summary_foreachphoto_%s.csv", curregname), header=TRUE)
+  
+  tagfreq <- plyr::count(unlist(summaryDF[grep("googletag", names(summaryDF), value=FALSE)])) #count how frequently each tag is used
+  #drop the unlist to get the frequency by column (i.e the most frequent first word etc)
+  write.csv(tagfreq, sprintf("googlevision/byregion/Frequency_of_google_labels_overscore60_%s.csv", curregname), fileEncoding = "UTF-8", row.names=FALSE)
+  
+  #plot wordcloud
+  wordplotfun(tagfreq$x, tagfreq$freq, outname=curregname, max.words=100, rot.per=0)
+} 
 
-#drop urban
-#flickramap <- flickramap[is.na(flickramap$InCity), ]
+#########################
+# Combine frequencies for all regions
+filelist <- list.files("googlevision/byregion/", pattern="Frequency_of_google_labels_overscore60")
+allfreqL <- lapply(filelist, function(i) {
+  a <- read.csv(paste0("googlevision/byregion/", i), header=TRUE, fileEncoding="UTF-8")
+  return(a)
+})
+allfreqDF <- do.call(rbind, allfreqL)
+allfreq <- allfreqDF %>% group_by(x) %>% summarise(freq=sum(freq)) 			
+write.csv(allfreq, "googlevision/Frequency_of_google_labels_overscore60_Arctic.csv", fileEncoding="UTF-8", row.names=FALSE)
+wordplotfun(allfreq$x, allfreq$freq, outname="Arctic", max.words=100, rot.per=0)
 
-load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")
 
 
 ####################################
