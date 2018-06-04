@@ -16,7 +16,8 @@ options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
 
 ### Load data ----
-flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban.shp")
+flickrshp <- load("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.Rdata")
+flickrshp <- all.sf
 
 #A little function to search for particular text in the tags
 #f <- for(i in 1:length(flickrshp$tags)){
@@ -26,7 +27,7 @@ flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_l
 ##############################
 #Preliminary processing
 #drop photos pre 2000 and from 2018 or later
-flickrshp <- flickrshp[flickrshp$year<2018 & flickrshp$year>2000, ]
+flickrshp <- flickrshp[flickrshp$year<2018 & flickrshp$year>2001, ]
 #drop rows missing urls
 flickrshp <- flickrshp[!is.na(flickrshp$url_m), ]
 
@@ -39,7 +40,7 @@ tags <- flickrshp$tags
 #tags <- tags[1:20000]
 titles <- flickrshp$title
 #titles <- titles[1:20000]
-write.csv(data.frame(flickrshp$tags, flickrshp$title, flickrshp$url_m), "input/flickr_tags_and_titles_2001to2017_photoswithurl.csv", fileEncoding="UTF-8")
+write.csv(data.frame(flickrshp$tags, flickrshp$title, flickrshp$url_m), "flickr_tags/flickr_tags_and_titles_2001to2017_photoswithurl.csv", fileEncoding="UTF-8")
 
 
 ##############################
@@ -83,16 +84,10 @@ titlelist <- lapply(titlelist, function(currtitles){
 #or just save file with UTF-8 encoding
 
 ### Join to flickrshp and save ----
-flickrshp_tags <- flickrshp[, c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region", "InCity")]
+flickrshp_tags <- flickrshp[, c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "photo_lt", "region", "InCity")]
 flickrshp_tags$flickr_tags <- taglist
 flickrshp_tags$title_tags <- titlelist
-  save(flickrshp_tags,file="input/Flickr_Artic_60N_plus_flickr_labels_urban.Rdata")
-
-#save in long format - each tag is a row, with photo information duplicated on each row
-flickrshp_tags_ft <- flickrshp_tags %>% data.frame() %>% unnest(flickr_tags)
-  write.csv(flickrshp_tags_ft, "output/Flickr_Artic_60N_plus_flickr_labels_tags_long.csv", fileEncoding = "UTF-8")
-flickrshp_tags_tt <- flickrshp_tags %>% data.frame() %>% unnest(title_tags)
-  write.csv(flickrshp_tags_tt, "output/Flickr_Artic_60N_plus_flickr_labels_titles_long.csv", fileEncoding = "UTF-8")
+  save(flickrshp_tags,file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickr_labels.Rdata")
 
 ### Calculate stats on data ----
 
@@ -104,11 +99,11 @@ length(unique(unlist(titlelist)))
 
 #frequency table of tags
 freq_tags <- plyr::count(unlist(taglist))
-  write.csv(freq_tags, "output/frequency_of_flickr_tag_words.csv", fileEncoding="UTF-8")
+  write.csv(freq_tags, "flickr_tags/frequency_of_flickr_tag_words.csv", fileEncoding="UTF-8")
 
 #frequency table of titles
 freq_titles <- plyr::count(unlist(titlelist))
-  write.csv(freq_titles, "output/frequency_of_flickr_title_words.csv", fileEncoding="UTF-8")
+  write.csv(freq_titles, "flickr_tags/frequency_of_flickr_title_words.csv", fileEncoding="UTF-8")
 
 
 
