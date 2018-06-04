@@ -6,6 +6,7 @@
 require(sf)
 require(tidyverse)
 require(raster)
+require(rasterVis)
 
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/es_mapping"
 #wd <- "/data/Claire/rasters/es_mapping"
@@ -30,6 +31,11 @@ for(i in 1:length(absfiles)){
 
 
 #make nice plots of the rasters
+miat = c(0, 0.25, 0.5, 0.75, 1)
+myColorkey <- list(at=miat, ## where the colors change
+                   labels=list(labels=miat, ##what to print
+                               at=miat))    ##where to print       
+levelplot(rast_prop[[1]],zscaleLog=NULL,contour=TRUE, margin=FALSE, scales = list(draw = FALSE), at=miat, colorkey = myColorkey, par.settings = BTCTheme)
 
 
 #calculate summary statistics by region
