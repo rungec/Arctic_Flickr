@@ -8,7 +8,7 @@
 # field "touristtype_revised": tourist/local/NA (from user stated location, locals fall within region bounded by AMAP, AMAP_updatedRussia_clipto60N.shp)
 
 # this is later merged with the flickrshp in Flickr_googlecloudvision_postprocessing.r
-# to make "Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_urban.Rdata"
+# to make "Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo.Rdata"
 
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
 setwd(wd)
@@ -25,7 +25,7 @@ secret = '02ee3e83c5cac3fe'
 
 
 #flickrshp <- read_sf()
-load("tag_analysis/input/Flickr_Artic_60N_plus_flickr_labels_urban.Rdata")
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickr_labels.Rdata")
 flickrshp <- flickrshp_tags
 #drop the tags & titles
 flickrshp[["flickr_tags"]] <- NULL

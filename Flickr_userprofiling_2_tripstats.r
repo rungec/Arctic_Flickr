@@ -11,7 +11,7 @@ library(tidyverse)
 
 
 #flickrshp <- read_sf()
-load("tag_analysis/input/Flickr_Artic_60N_plus_flickr_labels_urban.Rdata")
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickr_labels.Rdata")
 flickrshp <- flickrshp_tags
 #drop the tags & titles
 flickrshp[["flickr_tags"]] <- NULL

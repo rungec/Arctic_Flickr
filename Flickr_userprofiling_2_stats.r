@@ -13,7 +13,7 @@ library(tidyverse)
 
 #########################
 #Setup files
-load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/output/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_urban.Rdata")
+load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/output/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo.Rdata")
 #flickrshp, plus googletags, usertype, touristtype
 #drop geometry
 flickrshp <- st_set_geometry(flickrshp, NULL)
