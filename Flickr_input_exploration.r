@@ -99,12 +99,12 @@ spatialjoin <- st_intersects(all.sf, worldmap, sparse = FALSE)
 spatialjoin <- cbind(spatialjoin, apply(spatialjoin, 1, function(x) all(x==FALSE))) #add "Marine" column TRUE where points dont overlap any polygon in worldmap
 dimnames(spatialjoin) <- list(NULL, c(worldmap$ADMIN[1:10], "Alaska", "Marine"))
 all.sf <- cbind(all.sf, spatialjoin)
+all.sf$region <- as.character(all.sf$region)
 
 #add a column called 'region'
 all.df <- st_set_geometry(all.sf, NULL) #equivalent of sp@data
 all.sf$region <- apply(all.df[, 29:40],1, function(x) names(all.df[29:40][which(x)]))
 all.sf$region <- as.factor(all.sf$region)
-
 
 #check latitude for all regions
 p <- ggplot(all.sf, aes(photo_lat)) + 
@@ -118,24 +118,26 @@ p <- ggplot(all.sf, aes(photo_lat)) +
     theme_minimal(base_size=10)
 ggsave("figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9, width = 4)
 
-
-#save all.sf
-#all.sf$region <- as.character(all.sf$region)
-#st_write(all.sf, dsn="D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.shp")
-
 ############################
 #Identify urban areas ----
 ############################
+#add column InCity
 urbanshp <- urbanshp[, "NAME_EN"]
 urbanshp$InCity <- 1
 # drop photos from urban areas
 all.sf <- st_join(all.sf, urbanshp)
-st_write(all.sf, "D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban", driver="ESRI Shapefile")
+
+############################
+#Save ----
+############################
+st_write(all.sf, "D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate", driver="ESRI Shapefile")
+#save(all.sf, "D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.Rdata")
+
 
 ############################
 #How many users in each region ----
 ############################
-all.sf <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban.shp")
+all.sf <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.Rdata")
 all.sf.dat <- st_set_geometry(all.sf, NULL)  
 names(all.sf)
 #include only photos from 2000 to 2017 inclusive, with urls
