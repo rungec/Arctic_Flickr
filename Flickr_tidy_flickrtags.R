@@ -16,7 +16,7 @@ options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
 
 ### Load data ----
-flickrshp <- load("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.Rdata")
+flickrshp <- load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_byregion_laea_icelandupdate.Rdata")
 flickrshp <- all.sf
 
 #A little function to search for particular text in the tags
@@ -40,7 +40,7 @@ tags <- flickrshp$tags
 #tags <- tags[1:20000]
 titles <- flickrshp$title
 #titles <- titles[1:20000]
-write.csv(data.frame(flickrshp$tags, flickrshp$title, flickrshp$url_m), "flickr_tags/flickr_tags_and_titles_2001to2017_photoswithurl.csv", fileEncoding="UTF-8")
+#write.csv(data.frame(flickrshp$tags, flickrshp$title, flickrshp$url_m), "flickr_tags/flickr_tags_and_titles_2001to2017_photoswithurl.csv", fileEncoding="UTF-8")
 
 
 ##############################
@@ -83,12 +83,17 @@ titlelist <- lapply(titlelist, function(currtitles){
 #iconv(x, from="latin1", to = "ASCII/TRANSLIT")
 #or just save file with UTF-8 encoding
 
+#########################
 ### Join to flickrshp and save ----
-flickrshp_tags <- flickrshp[, c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "photo_lt", "region", "InCity")]
+keepcols <- which(!names(flickrshp) %in% c("Aland", "Canada", "Finland", "Faroe.Islands", 
+                                    "United.Kingdom", "Greenland", "Iceland", "Norway", "Russia", 
+                                    "Sweden", "Alaska", "Marine", "NAME_EN"))
+flickrshp_tags <- flickrshp[, keepcols]
 flickrshp_tags$flickr_tags <- taglist
 flickrshp_tags$title_tags <- titlelist
   save(flickrshp_tags,file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickr_labels.Rdata")
 
+#########################
 ### Calculate stats on data ----
 
 #Number of unique tag words
