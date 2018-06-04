@@ -13,10 +13,12 @@ library(tidyverse)
 
 #########################
 #Setup files
-load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/output/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo.Rdata")
+load(""D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_tidy.Rdata")
 #flickrshp, plus googletags, usertype, touristtype
+#2004 to 2017, no testusers
 #drop geometry
 flickrshp <- st_set_geometry(flickrshp, NULL)
+
 
 #########################
 ### 1. User stats ----
@@ -169,6 +171,15 @@ sink()
 
 
 #############################
+### Are super users different
+#do they go further?
+#do they use different flickr tags?
+#do they photograph different objects (google vision)?
+#https://github.com/GoranMilovanovic/Distributional-Semantics-in-R
+#http://docs.quanteda.io/
+#http://www.mjdenny.com/Text_Processing_In_R.html
+
+
 #Stats on trip distance ----
 ownerstats <- read.csv("Flickr_user_trip_summary.csv", header=TRUE)
 

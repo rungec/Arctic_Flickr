@@ -13,11 +13,11 @@ require(tidyverse)
 
 options(stringsAsFactors = FALSE)
 
-wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis/output"
+wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis/googlevision"
 setwd(wd)
 
 #load data
-load("Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_urban.Rdata")
+load("Flickr_Artic_60N_googlelabels_userinfo.Rdata")
 #flickrshp - flickr data for each photo plus user classifications, what region and whether urban
 
 #drop urban

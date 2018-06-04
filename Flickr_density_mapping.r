@@ -23,7 +23,7 @@ library(rgdal)
 #load bounding box shp
 boundary60N <- read_sf(paste0(wd2, "/Boundaries/Arctic_circle/60degreesN"), "60degreesN")
 #load flickr points as .shp
-load(paste0(dirname(wd), "/tag_analysis/output/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_urban.Rdata"))
+load(paste0(wd2, "/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo.Rdata"))
 #flickrshp
 
 ##########################

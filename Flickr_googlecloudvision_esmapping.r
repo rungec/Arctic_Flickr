@@ -19,14 +19,12 @@ wd2 <- "D:/Box Sync/Arctic/Data"
 ##########################
 ### Preliminary processing ----
 
-load(paste0(dirname(wd), "/tag_analysis/output/Flickr_Artic_60N_plus_flickrandgooglelabels_escodes_amap.Rdata"))
+load(paste0(wd2, "/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap.Rdata"))
 #photos from amap region, 
 #regular and super users only, 
+#2004 to 2017
 #dropped rows with no google vision labels
 #includes photos in towns/cities
-
-#add a new column, owner_date
-flickramap$owner_date <- paste(flickramap$owner, flickramap$datetkn, sep="_")
 
 #load country borders shp
 #worldmap <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBordersESRI_60degreesN_lambert.shp")
@@ -105,10 +103,9 @@ recreation <- c("recreation_air", "recreation_bonfire", "recreation_camping",
                 "recreation_tourism", "recreation_watersports")
 rast <- rastfun(flickramap, recreation, 10000, "recreation_all")
 
-#END######################
 
-
-c("abiotic_aurora", "abiotic_coastal", "abiotic_geology", "abiotic_ice", 
+#Make a raster of all es for normalising
+alles <- c("abiotic_aurora", "abiotic_coastal", "abiotic_geology", "abiotic_ice", 
   "abiotic_volcanic", "abiotic_water", "biotic_amphibian", "biotic_ecosystem", 
   "biotic_fauna", "biotic_fungus", "biotic_harvesting_animal", 
   "biotic_harvesting_berry", "biotic_harvesting_fish", "biotic_harvesting_fruit", 
@@ -123,3 +120,6 @@ c("abiotic_aurora", "abiotic_coastal", "abiotic_geology", "abiotic_ice",
   "recreation_hunting", "recreation_mountainsports", "recreation_offroad", 
   "recreation_photography", "recreation_snowsport", "recreation_tourism", 
   "recreation_watersports")
+rast <- rastfun(flickramap, alles, 10000, "allphotos")
+
+#END######################

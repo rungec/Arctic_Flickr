@@ -1,6 +1,6 @@
 #this script performs descriptive analysis on the Google Cloud Vision https://cloud.google.com/vision/ labels for the Arctic Flickr photos
 #I categorise the google labels by ecosystem feature or activity (escode) that they represent
-#and add this to the flickrshp (saved as "Flickr_Artic_60N_plus_flickrandgooglelabels_amap_escodes.Rdata")
+#and add this to the flickrshp (saved as "Flickr_Artic_60N_googlelabels_amap_escodes.Rdata")
 #summary stats on how many photos contain each escode and 
 #whether different types of flickr users are more or less likely to take photos representing each escode
 #follows on from Flickr_googlecloudvision_label.r and Flickr_googlecloudvision_postprocessing.r
@@ -13,7 +13,7 @@ require(readxl)
 
 options(stringsAsFactors = FALSE)
 
-wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis/output"
+wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/tag_analysis/googlevision"
 setwd(wd)
 
 ########################
@@ -27,22 +27,20 @@ findfun <- function(word, threshold_freq) {
 } 
 
 #load data
-load("Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_urban.Rdata")
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_tidy.Rdata")
 #flickrshp - flickr data for each photo plus user classifications, what region and whether urban
-#drop test users
-flickrshp <- flickrshp[flickrshp$usertype!="testuser", ]
 #drop rows with no google words (this could be due to no url, or the user having taken down the photo or made it private)
 flickrshp <- flickrshp[ rowSums(is.na( flickrshp[, grep("googletag", names(flickrshp))] )) < 20, ] #drop rows with all NAs
 
 #clip to AMAP boundaries - I updated the Yamal borders, and clipped out any areas south of 60N. 
 amap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/AMAP_updatedRussia_clipto60N.shp")
 flickramap <- st_intersection(flickrshp, amap)
-save(flickramap, file="Flickr_Artic_60N_plus_flickrandgooglelabels_amap.Rdata")
+save(flickramap, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")
 
 #drop urban
 #flickramap <- flickramap[is.na(flickramap$InCity), ]
 
-load("Flickr_Artic_60N_plus_flickrandgooglelabels_amap.Rdata")
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")
 
 
 ####################################
@@ -91,7 +89,7 @@ names(codetbl)[grep("googletag", names(codetbl))] <- paste0("escode", 1:20)
 
 #add to flickramap
 flickramap <- merge(flickramap, codetbl[, c("id", grep("escode", names(codetbl), value=TRUE))], by.x="id", by.y="id", all.x=TRUE)
-save(flickramap, file="Flickr_Artic_60N_plus_flickrandgooglelabels_escodes_amap.Rdata")
+save(flickramap, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap.Rdata")
 
 #change to long format
 codetbl_long <- gather(codetbl, escode1, escode, grep("escode", names(codetbl)))

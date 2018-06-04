@@ -8,7 +8,7 @@
 # field "touristtype_revised": tourist/local/NA (from user stated location, locals fall within region bounded by AMAP, AMAP_updatedRussia_clipto60N.shp)
 
 # this is later merged with the flickrshp in Flickr_googlecloudvision_postprocessing.r
-# to make "Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo.Rdata"
+# to make "Flickr_Artic_60N_googlelabels_userinfo.Rdata"
 
 wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/"
 setwd(wd)
@@ -32,14 +32,6 @@ flickrshp[["flickr_tags"]] <- NULL
 flickrshp[["title_tags"]] <- NULL
 rm(flickrshp_tags)
 
-### 1. Are super users different
-
-#do they go further?
-#do they use different flickr tags?
-#do they photograph different objects (google vision)?
-#https://github.com/GoranMilovanovic/Distributional-Semantics-in-R
-#http://docs.quanteda.io/
-#http://www.mjdenny.com/Text_Processing_In_R.html
 
 #########################
 # 1. Identify superusers ----

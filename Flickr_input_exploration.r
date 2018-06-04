@@ -28,8 +28,8 @@ options(stringsAsFactors = FALSE)
 options(tibble.width = Inf) #print all columns
 
 #load data
-dat_all <- read_csv("D:/Box Sync/Arctic/Data/Flickr/FlickrPhotosNorthOf60.csv")
-dat_iceland <- read_csv("D:/Box Sync/Arctic/Data/Flickr/FlickrPhotosIceland.csv")
+dat_all <- read_csv("D:/Box Sync/Arctic/Data/Flickr/raw/FlickrPhotosNorthOf60.csv")
+dat_iceland <- read_csv("D:/Box Sync/Arctic/Data/Flickr/raw/FlickrPhotosIceland.csv")
 
 #drop iceland from original dataset
 dat_sub <- dat_all[!(dat_all$longitude <=-12 
@@ -99,7 +99,6 @@ spatialjoin <- st_intersects(all.sf, worldmap, sparse = FALSE)
 spatialjoin <- cbind(spatialjoin, apply(spatialjoin, 1, function(x) all(x==FALSE))) #add "Marine" column TRUE where points dont overlap any polygon in worldmap
 dimnames(spatialjoin) <- list(NULL, c(worldmap$ADMIN[1:10], "Alaska", "Marine"))
 all.sf <- cbind(all.sf, spatialjoin)
-all.sf$region <- as.character(all.sf$region)
 
 #add a column called 'region'
 all.df <- st_set_geometry(all.sf, NULL) #equivalent of sp@data
@@ -107,16 +106,16 @@ all.sf$region <- apply(all.df[, 29:40],1, function(x) names(all.df[29:40][which(
 all.sf$region <- as.factor(all.sf$region)
 
 #check latitude for all regions
-p <- ggplot(all.sf, aes(photo_lat)) + 
-  geom_histogram() + 
-  facet_grid(region ~ . , scales = 'free_y') +
-  #geom_hline(yintercept=0, size=0.4, color="black") +
-  labs(title="Flickr by latitude",
-       subtitle="By region",
-       x="Latitude",
-       y="Number of photos") +
-    theme_minimal(base_size=10)
-ggsave("figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9, width = 4)
+# p <- ggplot(all.sf, aes(photo_lat)) + 
+#   geom_histogram() + 
+#   facet_grid(region ~ . , scales = 'free_y') +
+#   #geom_hline(yintercept=0, size=0.4, color="black") +
+#   labs(title="Flickr by latitude",
+#        subtitle="By region",
+#        x="Latitude",
+#        y="Number of photos") +
+#     theme_minimal(base_size=10)
+# ggsave("figures/Flickr_60N_histogram_latitude_byregion_facet.png", p, height = 9, width = 4)
 
 ############################
 #Identify urban areas ----
@@ -130,14 +129,14 @@ all.sf <- st_join(all.sf, urbanshp)
 ############################
 #Save ----
 ############################
-st_write(all.sf, "D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate", driver="ESRI Shapefile")
-#save(all.sf, "D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.Rdata")
+#st_write(all.sf, "D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate", driver="ESRI Shapefile")
+save(all.sf, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_byregion_laea_icelandupdate.Rdata")
 
 
 ############################
 #How many users in each region ----
 ############################
-all.sf <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate.Rdata")
+all.sf <- read_sf("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_byregion_laea_icelandupdate.Rdata")
 all.sf.dat <- st_set_geometry(all.sf, NULL)  
 names(all.sf)
 #include only photos from 2000 to 2017 inclusive, with urls
