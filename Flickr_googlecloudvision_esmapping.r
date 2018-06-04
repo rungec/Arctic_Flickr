@@ -55,7 +55,7 @@ rastfun <- function(data, es, curres, currfile) {
 
 #######################
 # Apply rastfun over es
-escats <- read.csv(paste0(dirname(wd), "/tag_analysis/output/regional_word_frequency/NumPhotos_byescode_anduser_amap.csv"), header=TRUE, stringsAsFactors = FALSE)
+escats <- read.csv(paste0(dirname(wd), "/tag_analysis/googlevision/regional_word_frequency/NumPhotos_byescode_anduser_amap.csv"), header=TRUE, stringsAsFactors = FALSE)
 escats <- escats$escode[1:(nrow(escats)-2)]
 
 lapply(escats, function(x) {

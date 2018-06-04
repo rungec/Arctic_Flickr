@@ -13,7 +13,7 @@ library(tidyverse)
 
 #########################
 #Setup files
-load(""D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_tidy.Rdata")
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_tidy.Rdata")
 #flickrshp, plus googletags, usertype, touristtype
 #2004 to 2017, no testusers
 #drop geometry
