@@ -32,8 +32,10 @@ wordplotfun <- function(words, freq, outname, ...){
 
 #function to find words associated with a keyword
 findfun <- function(word, threshold_freq) {
-  a <- ctbl[which(dimnames(ctbl)$Var2==word), ] #pull the 'word' row
-  assocwords <- names(a[a > threshold_freq]) #drop words with freq less than threshold_freq
+  gwcols <- grep("googletag", names(gwords), value=TRUE)
+  data_gw <- filter_at(gwords, gwcols, any_vars(. %in% word)) %>% select(gwcols) #pull the 'word' row
+  a <- plyr::count(unlist(data_gw))
+  assocwords <- a[a$freq > threshold_freq, ] %>% droplevels() #drop words with freq less than threshold_freq
   return(assocwords)
 } 
 
