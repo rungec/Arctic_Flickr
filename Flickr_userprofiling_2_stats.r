@@ -13,9 +13,16 @@ library(tidyverse)
 
 #########################
 #Setup files
-load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_tidy.Rdata")
+# load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_plus_flickrandgooglelabels_userinfo_tidy.Rdata")
+# #flickrshp, plus googletags, usertype, touristtype
+# #2004 to 2017, no testusers
+
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")
+flickrshp <- flickramap
 #flickrshp, plus googletags, usertype, touristtype
 #2004 to 2017, no testusers
+#amap region only, revised regions
+
 #drop geometry
 flickrshp <- st_set_geometry(flickrshp, NULL)
 

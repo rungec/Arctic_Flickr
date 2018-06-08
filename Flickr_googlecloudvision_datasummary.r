@@ -199,8 +199,19 @@ codetbl_long$esgroup <- sapply(codetbl_long$escode, function(x) {
 usergroupfreqDF <- merge(usergroupfreq, touristgroupfreq, by="esgroup")
 write.csv(usergroupfreqDF, "regional_word_frequency/NumPhotos_byesgroup_anduser_amap.csv", row.names=FALSE)
   
+
 ##########################
-# Region profiling ----
+# Region profiling ES ----
+
+#how many photos do each of the different user types take of the different ES in the different regions
+nphtos_inregion <- codetbl_long %>% group_by(region, escode, touristtype_revised) %>% summarise(freq_es=n_distinct(flickrid))
+nphtos_inregion_total <- codetbl_long %>% group_by(region, touristtype_revised) %>% summarise(freq_total=n_distinct(flickrid))
+nesDF <- merge(nphtos_inregion, nphtos_inregion_total, by=c("region", "touristtype_revised"), all.x=TRUE)
+write.csv(nesDF, "regional_word_frequency/NumPhotos_byescode_byregion_anduser_amap.csv", row.names=FALSE)
+
+
+##########################
+# Region profiling google words ----
 # Tabulate frequency of the different words, by region 
 
 # make table of the frequency of google words in each region

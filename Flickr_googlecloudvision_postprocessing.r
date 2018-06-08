@@ -143,9 +143,30 @@ save(flickrshp, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_
 #drop rows with no google words (this could be due to no url, or the user having taken down the photo or made it private)
 flickrshp <- flickrshp[ rowSums(is.na( flickrshp[, grep("googletag", names(flickrshp))] )) < 20, ] #drop rows with all NAs
 
-#clip to AMAP boundaries - I updated the Yamal borders, and clipped out any areas south of 60N. 
-amap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/AMAP_updatedRussia_clipto60N.shp")
+
+############################
+#AMAP ----
+############################
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy.Rdata")
+
+###clip to AMAP boundaries - I updated the Yamal borders, and clipped out any areas south of 60N. 
+amap <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/flickr_AMAP60N_dissolve.shp")
 flickramap <- st_intersection(flickrshp, amap)
+
+###Which points fall within which country
+amap_regions <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/flickr_AMAP60N_all_level_one_subdivisions_svalbard_simplified_EEZ.shp")
+spatialjoin <- st_intersects(flickramap, amap_regions, sparse = FALSE)
+#tidy up the data
+spatialjoin <- cbind(spatialjoin, apply(spatialjoin, 1, function(x) all(x==FALSE))) #add "not in region" column TRUE where points dont overlap any polygon in worldmap
+dimnames(spatialjoin) <- list(NULL, c(amap_regions$OBJECTID, max(amap_regions$OBJECTID)+1)) #assign OID for matching
+region_oid <- apply(spatialjoin,1, function(x) as.numeric(names(which(x))))
+region_oid <- matrix(region_oid, ncol=1) %>% data.frame()
+names(region_oid) <- "oid"
+amapdf <- st_set_geometry(amap_regions, NULL) #equivalent of sp@data
+region_country <- merge(region_oid, amapdf[, c("OBJECTID", "NAME_0", "NAME_1", "Country")], by.x="oid", by.y="OBJECTID", all.x=TRUE)
+
+#join to flickramap
+flickramap <- bind_cols(flickramap, region_country)
 
 #save
 save(flickramap, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")

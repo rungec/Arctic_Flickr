@@ -29,7 +29,7 @@ load(paste0(wd2, "/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap.R
 #load country borders shp
 #worldmap <- readOGR("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/60degreesN/CountryBordersESRI_60degreesN_lambert.shp")
 #load AMAP boundaries - I updated the Yamal borders, and clipped out any areas south of 60N. 
-amap <- read_sf(paste0(wd2, "/Boundaries/Arctic_circle/AMAP/AMAP_updatedRussia_clipto60N.shp"))
+amap <- read_sf(paste0(wd2, "/Boundaries/Arctic_circle/AMAP/flickr_AMAP60N_dissolve.shp"))
 rcrs <- st_crs(amap)
 
 #######################
