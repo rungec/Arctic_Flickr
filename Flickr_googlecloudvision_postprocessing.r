@@ -44,7 +44,7 @@ for(i in seq_along(regionlist)){
         load(filelist[y])
         allgoogle <- append(allgoogle, google)
       }
-    save(allgoogle,file=sprintf("googlevision/byregion/Google_output_%s.Rdata", curregname)) #save the dataset
+    save(allgoogle,file=sprintf("googlevision/google_output/Google_output_%s.Rdata", curregname)) #save the dataset
     }
 
 #########################
@@ -54,7 +54,7 @@ for(i in seq_along(regionlist)){
 for(i in seq_along(regionlist)){
   curregion <- regionlist[i]
   curregname <- names(curregion)
-  load(sprintf("googlevision/byregion/Google_output_%s.Rdata", curregname))
+  load(sprintf("googlevision/google_output/Google_output_%s.Rdata", curregname))
   
   #add a summary of the data
 	b <- list() 
@@ -83,7 +83,7 @@ for(i in seq_along(regionlist)){
 	}
 	summaryDF <- do.call(plyr::rbind.fill, b)
 	summaryDF <- data.frame(id=names(allgoogle), summaryDF)
-write.csv(summaryDF, sprintf("googlevision/byregion/Google_labels_summary_foreachphoto_%s.csv", curregname), row.names = TRUE, fileEncoding = "UTF-8")
+write.csv(summaryDF, sprintf("googlevision/google_output/Google_labels_summary_foreachphoto_%s.csv", curregname), row.names = TRUE, fileEncoding = "UTF-8")
 print(paste("Finished", curregname, length(which(is.na(summaryDF$numtags))), "NAs of", nrow(summaryDF), sep=" "))
 
 }

@@ -21,7 +21,10 @@ load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_use
 flickrshp <- flickramap
 #flickrshp, plus googletags, usertype, touristtype
 #2004 to 2017, no testusers
-#amap region only, revised regions
+#amap region only
+#define regions
+flickrshp$region <- flickrshp$NAME_0
+#might also choose NAME_0 which splits countries into land/EEZ
 
 #drop geometry
 flickrshp <- st_set_geometry(flickrshp, NULL)
@@ -55,7 +58,7 @@ user_propfun <- function(data, outname) {
 #run user function on all data
 user_propfun(flickrshp, "by_region")
 #run user function outside cities
-flickrshp_sub <- flickrshp[is.na(flickrshp$InCity), ]
+flickrshp_sub <- flickrshp[flickrshp$InCity==0, ]
 user_propfun(flickrshp_sub, "by_region_outsideCities")
 
 # 1b. What % of superusers are tourists?

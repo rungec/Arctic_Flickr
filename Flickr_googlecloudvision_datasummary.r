@@ -19,13 +19,17 @@ setwd(wd)
 #flickramap
 load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")
 
+#define regions
+flickramap$region <- flickramap$Country
+#might also choose NAME_0 which splits countries into land/EEZ
+
 ########################
 #Preliminary processing ----
 #set up functions
 
 #set up wordcloud plotfun
 wordplotfun <- function(words, freq, outname, ...){
-  png(filename = sprintf("googlevision/byregion/Google_labels_wordcloud_%s.png", outname), width=14, height=14, units="in", type='windows', antialias = "cleartype", res=600)
+  png(filename = sprintf("googlevision/freq_googlelabels/Google_labels_wordcloud_%s.png", outname), width=14, height=14, units="in", type='windows', antialias = "cleartype", res=600)
   wordcloud(words=words, freq=freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman", ...)
   dev.off()
 }
@@ -39,40 +43,12 @@ findfun <- function(word, threshold_freq) {
   return(assocwords)
 } 
 
-########################
-#Calculate some summary stats
-########################
-
-# Frequency of all tags scoring above 60
-for(i in seq_along(regionlist)){
-  curregion <- regionlist[i]
-  curregname <- names(curregion)
-  summaryDF <- read.csv(sprintf("googlevision/byregion/Google_labels_summary_foreachphoto_%s.csv", curregname), header=TRUE)
-  
-  tagfreq <- plyr::count(unlist(summaryDF[grep("googletag", names(summaryDF), value=FALSE)])) #count how frequently each tag is used
-  #drop the unlist to get the frequency by column (i.e the most frequent first word etc)
-  write.csv(tagfreq, sprintf("googlevision/byregion/Frequency_of_google_labels_overscore60_%s.csv", curregname), fileEncoding = "UTF-8", row.names=FALSE)
-  
-  #plot wordcloud
-  wordplotfun(tagfreq$x, tagfreq$freq, outname=curregname, max.words=100, rot.per=0)
-} 
-
-#########################
-# Combine frequencies for all regions
-filelist <- list.files("googlevision/byregion/", pattern="Frequency_of_google_labels_overscore60")
-allfreqL <- lapply(filelist, function(i) {
-  a <- read.csv(paste0("googlevision/byregion/", i), header=TRUE, fileEncoding="UTF-8")
-  return(a)
-})
-allfreqDF <- do.call(rbind, allfreqL)
-allfreq <- allfreqDF %>% group_by(x) %>% summarise(freq=sum(freq)) 			
-write.csv(allfreq, "googlevision/Frequency_of_google_labels_overscore60_Arctic.csv", fileEncoding="UTF-8", row.names=FALSE)
-wordplotfun(allfreq$x, allfreq$freq, outname="Arctic", max.words=100, rot.per=0)
-
-
-
 ####################################
 # Main processing ----
+####################################
+########################
+#Exploration of google labels ----
+########################
 # Output tables of the google labels by region
 
 #output the frequency of google vision words used in the amap boundaries
@@ -80,14 +56,19 @@ gwords <- flickramap %>% st_set_geometry(NULL) %>%
           select(c("id", "region", "usertype", "touristtype_revised", grep("googletag", names(flickramap), value=TRUE))) 
 gwfreqa <- unlist(gwords[, grep("googletag", names(flickramap), value=TRUE)]) 
 gwfreq <- plyr::count(gwfreqa)
-write.csv(gwfreq, "regional_word_frequency/Frequency_of_google_labels_overscore60_Amap.csv", fileEncoding="UTF-8", row.names=FALSE)
+write.csv(gwfreq, "freq_googlelabels/Frequency_of_google_labels_overscore60_Amap.csv", fileEncoding="UTF-8", row.names=FALSE)
 
-#output google vision words for each region
-for(curregion in unique(gwords$region)) {
-  gwfreqa <- unlist(gwords[gwords$region==curregion, grep("googletag", names(flickramap), value=TRUE)])
-  gwfreq <- plyr::count(gwfreqa)
-  write.csv(gwfreq, sprintf("byregion/Frequency_of_google_labels_overscore60_Amap_%s.csv", curregion), fileEncoding="UTF-8", row.names=FALSE)
-}
+
+#output google vision wordclouds for each region
+ for(curregion in unique(gwords$region)) {
+   curregname <- gsub(" ", "", curregion)
+   curregname <- gsub("\\.", "", curregname)
+   gwfreqa <- unlist(gwords[gwords$region==curregion, grep("googletag", names(flickramap), value=TRUE)])
+   gwfreqr <- plyr::count(gwfreqa)
+  #make wordclouds of common words by region
+  wordplotfun(gwfreqr$x, gwfreqr$freq, outname=curregname, max.words=100, rot.per=0)
+#   write.csv(gwfreqr, sprintf("byregion/Frequency_of_google_labels_overscore60_Amap_%s.csv", curregion), fileEncoding="UTF-8", row.names=FALSE)
+ }
 
 #Tabulate freq of photos reprenting each ES 
 
@@ -98,9 +79,13 @@ for(curregion in unique(gwords$region)) {
 #the half completed file is Frequency_of_google_labels_overscore60_Arctic_ESclasses.xlsx
 #the completed file is Frequency_of_google_labels_overscore60_Amap_ESclasses.xlsx
 
+########################
+#Exploration of es codes ----
+########################
+
 #add ES codes to words in amap region
-gwfreq <- read.csv("regional_word_frequency/Frequency_of_google_labels_overscore60_Amap.csv", fileEncoding="UTF-8", header=TRUE)
-escodeDF <- read_excel("regional_word_frequency/Frequency_of_google_labels_overscore60_Amap_ESclasses.xlsx")
+gwfreq <- read.csv("freq_googlelabels/Frequency_of_google_labels_overscore60_Amap.csv", fileEncoding="UTF-8", header=TRUE)
+escodeDF <- read_excel("freq_escodes/Frequency_of_google_labels_overscore60_Amap_ESclasses.xlsx")
 amapfreq <- merge(gwfreq, escodeDF, by.x="x", by.y="x", all.x=TRUE)
 amapfreq <- amapfreq[, !names(amapfreq)=="freq"]
 
@@ -125,6 +110,13 @@ names(codetbl_long)[1] <- "flickrid"
 #drop extra col
 codetbl_long <- codetbl_long[, !(names(codetbl_long)=="escode1")]
 
+#summarise number of photos representing each escode
+codefreq_total <- codetbl_long %>% group_by(escode) %>% summarise(freq_amap_escode=n_distinct(flickrid))
+codefreq_total$nphotos <- nrow(flickramap) #add col listin nphotos  
+codefreq_total$freq_amap_escode_prop <- with(codefreq_total, freq_amap_escode/nphotos) #convert frequencies to proportion, as prop of photos in a given region
+write.csv(codefreq_total, "freq_escodes/Frequency_of_ESclasses_amap.csv", row.names=FALSE)
+
+
 #summarise number of photos representing each escode, in each region
 codefreq <- codetbl_long %>% group_by(region, escode) %>% summarise(freq_amap_escode=n_distinct(flickrid))
 
@@ -137,14 +129,14 @@ codefreq <- merge(codefreq, nphotoDF, by.x="region", by.y="x", all.x=TRUE)
 codefreq$freq_amap_escode_prop <- with(codefreq, freq_amap_escode/nphotos)
 
 #save
-write.csv(codefreq, "regional_word_frequency/Frequency_of_ESclasses_amap_byregion_long.csv", row.names=FALSE)
+write.csv(codefreq, "freq_escodes/Frequency_of_ESclasses_amap_byregion_long.csv", row.names=FALSE)
 
 #convert to wide & save (it's not so straightforward to spread on two cols with tidyr)
 codefreq_wide <- codefreq %>% 
   gather(variable, value, -(region:escode)) %>%
   unite(temp, region, variable) %>%
   spread(temp, value)
-write.csv(codefreq_wide, "regional_word_frequency/Frequency_of_ESclasses_amap_byregion_wide.csv", row.names=FALSE)
+write.csv(codefreq_wide, "freq_escodes/Frequency_of_ESclasses_amap_byregion_wide.csv", row.names=FALSE)
 
 ########################
 # User profiling ----
@@ -158,7 +150,7 @@ nuserDF <- merge(nusers_inregion, nusers_inregion_type, by=c("region"), all.y=TR
 nuserDF <- merge(nuserDF, nusers_inregion_type_tourist, by=c("region", "usertype"), all.y=TRUE)
 nuserDF$propinregion_bytype <- nuserDF$nusers_region_type/nuserDF$nusers_region
 nuserDF$propinregion_tourist <- nuserDF$nusers_region_type_tourist/nuserDF$nusers_region_type
-write.csv(nuserDF, "regional_word_frequency/NumPhotos_byregion_anduser_amap.csv", row.names=FALSE)
+write.csv(nuserDF, "freq_escodes/NumPhotos_byregion_anduser_amap.csv", row.names=FALSE)
 
 #Do different users use different ES in each region? 
 #summarise number of photos representing each escode, in each usertype (regular/superuser)
@@ -179,7 +171,7 @@ usercodefreqDF$superuser_prop <- usercodefreqDF$superuser/nphotos_byusers[nphoto
 usercodefreqDF$local_prop <- usercodefreqDF$local/nphotos_bytourists[nphotos_bytourists$touristtype_revised %in% "local", "nphotos"]
 usercodefreqDF$tourist_prop <- usercodefreqDF$tourist/nphotos_bytourists[nphotos_bytourists$touristtype_revised %in% "tourist", "nphotos"]
 usercodefreqDF <- rbind(usercodefreqDF, c("total_nphotos", rep(c(nphotos_byusers$nphotos, nphotos_bytourists$nphotos), times=2)))  
-write.csv(usercodefreqDF, "regional_word_frequency/NumPhotos_byescode_anduser_amap.csv", row.names=FALSE)
+write.csv(usercodefreqDF, "freq_escodes/NumPhotos_byescode_anduser_amap.csv", row.names=FALSE)
 
 #group into biotic, abiotic, recreation, harvesting and count
 codetbl_long$esgroup <- sapply(codetbl_long$escode, function(x) {
@@ -197,7 +189,7 @@ codetbl_long$esgroup <- sapply(codetbl_long$escode, function(x) {
     summarise(freq_amap_esgroup=n_distinct(flickrid)) %>%
     spread(touristtype_revised, freq_amap_esgroup)
 usergroupfreqDF <- merge(usergroupfreq, touristgroupfreq, by="esgroup")
-write.csv(usergroupfreqDF, "regional_word_frequency/NumPhotos_byesgroup_anduser_amap.csv", row.names=FALSE)
+write.csv(usergroupfreqDF, "freq_escodes/NumPhotos_byesgroup_anduser_amap.csv", row.names=FALSE)
   
 
 ##########################
@@ -207,7 +199,7 @@ write.csv(usergroupfreqDF, "regional_word_frequency/NumPhotos_byesgroup_anduser_
 nphtos_inregion <- codetbl_long %>% group_by(region, escode, touristtype_revised) %>% summarise(freq_es=n_distinct(flickrid))
 nphtos_inregion_total <- codetbl_long %>% group_by(region, touristtype_revised) %>% summarise(freq_total=n_distinct(flickrid))
 nesDF <- merge(nphtos_inregion, nphtos_inregion_total, by=c("region", "touristtype_revised"), all.x=TRUE)
-write.csv(nesDF, "regional_word_frequency/NumPhotos_byescode_byregion_anduser_amap.csv", row.names=FALSE)
+write.csv(nesDF, "freq_escodes/NumPhotos_byescode_byregion_anduser_amap.csv", row.names=FALSE)
 
 
 ##########################
@@ -224,7 +216,7 @@ for(currfile in filelist){
 }
 
 #save dataset
-write.csv(amapfreq, "regional_word_frequency/Frequency_of_google_labels_overscore60_Amap_ESclasses_byregion.csv", fileEncoding="UTF-8", row.names=FALSE)
+write.csv(amapfreq, "freq_escodes/Frequency_of_google_labels_overscore60_Amap_ESclasses_byregion.csv", fileEncoding="UTF-8", row.names=FALSE)
 
 #covert to long format
 amapfreq_long <- gather(amapfreq, region, freq, grep("freq_", names(amapfreq)))
@@ -235,7 +227,7 @@ amapfreq_long <- merge(amapfreq_long, nphotoDF, by.x="region", by.y="x", all.x=T
 amapfreq_long$freq_prop <- with(amapfreq_long, freq/nphotos)
 
 #save dataset
-write.csv(amapfreq_long, "regional_word_frequency/Frequency_of_google_labels_overscore60_Amap_ESclasses_byregion_long.csv", fileEncoding="UTF-8", row.names=FALSE)
+write.csv(amapfreq_long, "freq_escodes/Frequency_of_google_labels_overscore60_Amap_ESclasses_byregion_long.csv", fileEncoding="UTF-8", row.names=FALSE)
 
 
 ##########################
@@ -261,7 +253,7 @@ ggplot(codefreq_sub, aes(x=escode, y=freq_amap_escode_prop*100, fill=estype) ) +
   ylim(0, 65) +
   facet_wrap(~region, scales="free_x", ncol=2) +
   theme(panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank(), axis.text.y = element_text(size=2), legend.position="bottom") 
-ggsave("regional_word_frequency/Barplot_Esclasses_byregion.pdf", height=21, width=14, units="cm")  
+ggsave("freq_escodes/Barplot_Esclasses_byregion.pdf", height=21, width=14, units="cm")  
 
 
 ############################
@@ -279,7 +271,7 @@ esDF <- do.call(rbind, esL)
 estbl <- table(esDF)
 estbl2 <- data.frame(estbl)
 names(estbl2) <- c("es1", "es2", "Freq")
-write.csv(estbl2, "regional_word_frequency/ESclasses_contingency_table_nphotos_amap.csv", row.names=TRUE)
+write.csv(estbl2, "freq_escodes/ESclasses_contingency_table_nphotos_amap.csv", row.names=TRUE)
 
 ###########################
 #Plot contingency table
@@ -289,16 +281,16 @@ ggplot(estbl2, aes(es1, es2)) +
   scale_fill_gradient(name = 'co-occurence', low = 'royalblue', high = 'gold', trans='log10') + 
   theme(axis.title.y = element_blank(), axis.title.x = element_blank(), 
         axis.text.x =element_text(size=1, angle=90, hjust=1), axis.text.y=element_text(size=1))
-ggsave("Googlevision_ecosystemservices_contingency_table_heatmap.pdf", width=14, height=14, units=c("in"))
+ggsave("freq_escodes/Googlevision_ecosystemservices_contingency_table_heatmap.pdf", width=14, height=14, units=c("in"))
 
 
 require(corrplot)
 estbl3 <- log(estbl)
 estbl3[estbl3==Inf | estbl3==-Inf] <- 0
-pdf("Googlevision_ecosystemservices_contingency_table_corrplot_log.pdf", width=14, height=14)
+pdf("freq_escodes/Googlevision_ecosystemservices_contingency_table_corrplot_log.pdf", width=14, height=14)
 corrplot(estbl3, method='color', type='lower', diag = FALSE, order="original", tl.cex=1, tl.col = "black", tl.srt = 45, is.corr = FALSE)
 dev.off()
-pdf("Googlevision_ecosystemservices_contingency_table_corrplot.pdf", width=14, height=14)
+pdf("freq_escodes/Googlevision_ecosystemservices_contingency_table_corrplot.pdf", width=14, height=14)
 corrplot(estbl, method='color', type='lower', diag = FALSE, order="original", tl.cex=1, tl.col = "black", tl.srt = 45, is.corr = FALSE)
 dev.off()
 
