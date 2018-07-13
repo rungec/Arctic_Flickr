@@ -1,8 +1,6 @@
 ### Set up libraries ----
 require(sf)
 require(tidyverse)
-require(ggplot2)
-require(readxl)
 
 options(stringsAsFactors = FALSE)
 
@@ -75,17 +73,29 @@ write.csv(table1, "Summary_stats_for_Paper3b_Table1.csv")
 
 #Summarise top 10 words for each es:
 
-codetbl2 <- flickramap[, c("id", "owner", grep("googletag", names(flickramap), value=TRUE), grep("escode", names(flickramap), value=TRUE))]  %>% st_set_geometry(NULL)
+codetbl2 <- flickramap[, c("id", "owner", grep("googletag", names(flickramap), value=TRUE))]  %>% st_set_geometry(NULL)
 #gather, 20 rows per photo
 #this is slow, but I had to add the mutate as gather had issues with googletag columns having different levels
 codetbl_long2 <- codetbl2 %>% mutate_at(vars(contains("googletag")), funs(as.character)) %>%
-                              gather(variable, value, googletag1:escode20) 
-codetbl_long2$variable <- sapply(codetbl_long2$variable, function(x) gsub(".$", "", x)) 
-codetbl_long3 <- spread(codetbl_long2, key=variable, value=value)
+                              gather(googletagV, googletag, grep("escode", names(codetbl))) 
+#drop extra col
+codetbl_long2 <- codetbl_long2[, !(names(codetbl_long2)=="googletagV")]
+codetbl_long3 <- data.frame(codetbl_long, googletag=codetbl_long2[, "googletag"])
 
-count_es <- codetbl_long2 %>% group_by(escode, googletag) %>% 
+#count frequency of words used for each esgroup
+count_es <- codetbl_long3 %>% group_by(esgroup, googletag) %>% 
                               summarise(freq=n_distinct(id)) %>%
-                              arrange(desc(freq))
+                              group_by(esgroup) %>%
+                              top_n(10, freq)
+count_es$oup <- with(count_es, paste0(googletag, " (", freq, ")"))
+write.csv(count_es, "test.csv")
                               
+
+ 
+count_es <- codetbl_long3 %>% filter(escode %in% c("biotic_managed", "biotic_bird", "biotic_wildlife")) %>%
+            group_by(escode, googletag) %>% 
+            summarise(freq=n_distinct(id)) %>%
+            arrange(desc(freq))
+
 
 
