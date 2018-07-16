@@ -137,11 +137,11 @@ flickrshp <- flickrshp[flickrshp$year %in% as.factor(2004:2017), ]
 #drop testusers
 flickrshp <- flickrshp[flickrshp$usertype %in% c("superuser", "regular"), ]
 
-#save
-save(flickrshp, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy.Rdata")
-
 #drop rows with no google words (this could be due to no url, or the user having taken down the photo or made it private)
 flickrshp <- flickrshp[ rowSums(is.na( flickrshp[, grep("googletag", names(flickrshp))] )) < 20, ] #drop rows with all NAs
+
+#save
+save(flickrshp, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy.Rdata")
 
 
 ############################
