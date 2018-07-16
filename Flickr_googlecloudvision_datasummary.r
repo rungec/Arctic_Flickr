@@ -10,6 +10,7 @@ require(sf)
 require(tidyverse)
 require(ggplot2)
 require(readxl)
+require(wordcloud)
 
 options(stringsAsFactors = FALSE)
 
@@ -20,8 +21,13 @@ setwd(wd)
 load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")
 
 #define regions
-flickramap$region <- flickramap$Country
+#flickramap$region <- flickramap$Country
+flickramap$region <- flickramap$NAME_0
 #might also choose NAME_0 which splits countries into land/EEZ
+
+#drop duplicated rows - this is a weird error that happens, I can't find a cause for it
+flickramap2 <- flickramap %>% filter(! duplicated(id))
+flickramap <- flickramap2
 
 ########################
 #Preliminary processing ----
@@ -29,7 +35,7 @@ flickramap$region <- flickramap$Country
 
 #set up wordcloud plotfun
 wordplotfun <- function(words, freq, outname, ...){
-  png(filename = sprintf("googlevision/freq_googlelabels/Google_labels_wordcloud_%s.png", outname), width=14, height=14, units="in", type='windows', antialias = "cleartype", res=600)
+  png(filename = sprintf("freq_googlelabels/Google_labels_wordcloud_%s.png", outname), width=14, height=14, units="in", type='windows', antialias = "cleartype", res=600)
   wordcloud(words=words, freq=freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman", ...)
   dev.off()
 }
@@ -80,7 +86,7 @@ write.csv(gwfreq, "freq_googlelabels/Frequency_of_google_labels_overscore60_Amap
 #the completed file is Frequency_of_google_labels_overscore60_Amap_ESclasses.xlsx
 
 ########################
-#Exploration of es codes ----
+#Add es codes to amap ----
 ########################
 
 #add ES codes to words in amap region
@@ -104,6 +110,11 @@ names(codetbl)[grep("googletag", names(codetbl))] <- paste0("escode", 1:20)
 flickramap <- merge(flickramap, codetbl[, c("id", grep("escode", names(codetbl), value=TRUE))], by.x="id", by.y="id", all.x=TRUE)
 save(flickramap, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap.Rdata")
 
+########################
+#Exploration of es codes ----
+########################
+codetbl <- flickramap %>% st_set_geometry(NULL) %>% 
+  select(c("id", "region", "usertype", "touristtype_revised", grep("escode", names(flickramap), value=TRUE))) 
 #change to long format
 codetbl_long <- gather(codetbl, escode1, escode, grep("escode", names(codetbl)))
 names(codetbl_long)[1] <- "flickrid"
