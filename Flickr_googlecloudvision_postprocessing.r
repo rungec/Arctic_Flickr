@@ -155,18 +155,31 @@ flickramap <- st_intersection(flickrshp, amap)
 
 ###Which points fall within which country
 amap_regions <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/flickr_AMAP60N_all_level_one_subdivisions_svalbard_simplified_EEZ.shp")
-spatialjoin <- st_intersects(flickramap, amap_regions, sparse = FALSE)
-#tidy up the data
-spatialjoin <- cbind(spatialjoin, apply(spatialjoin, 1, function(x) all(x==FALSE))) #add "not in region" column TRUE where points dont overlap any polygon in worldmap
-dimnames(spatialjoin) <- list(NULL, c(amap_regions$OBJECTID, max(amap_regions$OBJECTID)+1)) #assign OID for matching
-region_oid <- apply(spatialjoin,1, function(x) as.numeric(names(which(x))))
-region_oid <- matrix(region_oid, ncol=1) %>% data.frame()
-names(region_oid) <- "oid"
+#drop duplicated rows - this is a weird error that happens, I can't find a cause for it
+flickramap2 <- flickramap %>% filter(! duplicated(id))
+flickramap <- flickramap2
+rm(flickramap2)
+
+###Which points fall within which country
+amap_regions <- read_sf("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/flickr_AMAP60N_all_level_one_subdivisions_svalbard_simplified_EEZ.shp")
+spatialjoin <- st_intersects(flickramap, amap_regions, sparse = TRUE)
+#tidy up the data. There is 1 row per row in flickramap
+region_oid <- lapply(1:length(spatialjoin), function(x){
+  data.frame(flickr_rowid=x, 
+             amap_rowid=spatialjoin[[x]][1]) #country borders should not overlap, but in case they do, pick the first
+})
+region_oid2 <- do.call(rbind, region_oid)
+
+#select the columns from the amap shp we want to merge with flickramap
 amapdf <- st_set_geometry(amap_regions, NULL) #equivalent of sp@data
-region_country <- merge(region_oid, amapdf[, c("OBJECTID", "NAME_0", "NAME_1", "Country")], by.x="oid", by.y="OBJECTID", all.x=TRUE)
+amapdf$amap_rowid <- as.integer(row.names(amapdf))
+region_country <- merge(region_oid2, amapdf[, c("amap_rowid", "OBJECTID", "NAME_0", "NAME_1", "Country")], by.x="amap_rowid", by.y="amap_rowid", all.x=TRUE)
+names(region_country) [3] <- "amap_OBJECTID"
 
 #join to flickramap
-flickramap <- bind_cols(flickramap, region_country)
+flickramap <- bind_cols(flickramap, region_country[order(region_country$flickr_rowid), ])
+#drop flickr_rowid col
+flickramap <- flickramap %>% select(-flickr_rowid) 
 
 #save
 save(flickramap, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")

@@ -25,9 +25,9 @@ load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_use
 flickramap$region <- flickramap$NAME_0
 #might also choose NAME_0 which splits countries into land/EEZ
 
-#drop duplicated rows - this is a weird error that happens, I can't find a cause for it
-flickramap2 <- flickramap %>% filter(! duplicated(id))
-flickramap <- flickramap2
+#drop duplicated rows - this is a weird error that happens, I think it was linked to the problem I had with st_intersects
+#flickramap2 <- flickramap %>% filter(! duplicated(id))
+#flickramap <- flickramap2
 
 ########################
 #Preliminary processing ----
