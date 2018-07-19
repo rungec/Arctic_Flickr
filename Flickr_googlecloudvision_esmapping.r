@@ -54,42 +54,41 @@ rastfun <- function(data, es, curres, currfile) {
   }
 
 #######################
-# Apply rastfun over es
-escats <- read.csv(paste0(dirname(wd), "/tag_analysis/googlevision/regional_word_frequency/NumPhotos_byescode_anduser_amap.csv"), header=TRUE, stringsAsFactors = FALSE)
-escats <- escats$escode[1:(nrow(escats)-2)]
+#load a list of the escats
+esinp <- read.csv(paste0(dirname(wd), "/tag_analysis/googlevision/freq_escodes/NumPhotos_byescode_anduser_amap.csv"), header=TRUE, stringsAsFactors = FALSE)
+escats <- data.frame(escode=esinp[1:(nrow(esinp)-2), "escode"])
+#add esgroups
+escats$esgroup <- sapply(escats$escode, function(x) {
+  a <- strsplit(as.character(x), "_")
+  if ("harvesting" %in% a[[1]]){
+    return(a[[1]][2])
+  } else {
+    return(a[[1]][1])
+  }
+})
 
-lapply(escats, function(x) {
+# Apply rastfun over each escode
+es_select <- c("biotic_wildlife", "biotic_bird", "biotic_managed")
+lapply(es_select, function(x) {
   rastfun(flickramap, x, 10000, x)
 } ) 
   
-#drop rows for biotic fauna with pet?
+# Apply rastfun over each esgroup
+lapply(escats$esgroup, function(x) {
+  es <- as.character(escats$escode[escats$esgroup==x])
+  rastfun(flickramap, es, 10000, paste(x, "_all"))
+})
+
+#Make a raster of all es for normalising
+alles <- as.character(escats$escode)
+rast <- rastfun(flickramap, alles, 10000, "allphotos")
+  
 
 #######################
 # Combined es rasters 
 # note that becuase these words can occur in a single photo, individual rasters for es cannot simply be added together.
 
-#Biotic
-bioes <- c("biotic_wildlife", "biotic_bird", "biotic_reptile", "biotic_invertebrate", "biotic_plant", "biotic_fungus", "biotic_ecosystem")
-rast <- rastfun(flickramap, bioes, 10000, "biotic_all")
-
-bionature <- c("biotic_plant", "biotic_fungus", "biotic_ecosystem")
-rast <- rastfun(flickramap, bionature, 10000, "biotic_nature")
-
-biowildlife <- c("biotic_wildlife", "biotic_reptile", "biotic_invertebrate", "biotic_bird")
-rast <- rastfun(flickramap, bioes, 10000, "biotic_fauna_all")
-
-#abiotic
-abiotic_all <- c("abiotic_aurora", "abiotic_coastal", "abiotic_geology", "abiotic_ice", 
-"abiotic_volcanic", "abiotic_water") 
-rast <- rastfun(flickramap, abiotic_all, 10000, "abiotic_all")
-
 #harvesting and hunting
-harvest_es <- c("biotic_harvesting_animal", "biotic_livestock", "biotic_harvesting_berry", 
-                "biotic_harvesting_fish", "biotic_harvesting_hay",     
-                "biotic_harvesting_mushroom",  "biotic_harvesting_produce", 
-                "biotic_harvesting_seafood", "biotic_harvesting_wood")
-rast <- rastfun(flickramap, harvest_es, 10000, "harvest_all")
-
 harvestorhunt_es <- c(harvest_es, "recreation_hunting", "recreation_fishing")
 rast <- rastfun(flickramap, harvest_es, 10000, "harvesthuntingorfishing_all")
 
@@ -99,30 +98,6 @@ rast <- rastfun(flickramap, fishing_es, 10000, "fishing_all")
 farming_es <- c("biotic_harvesting_animal", "biotic_livestock", "biotic_managed")
 rast <- rastfun(flickramap, farming_es, 10000, "livestockfarming_all")
 
-#recreation
-recreation <- c("recreation_air", "recreation_bonfire", "recreation_camping", 
-                "recreation_cycling", "recreation_diving", "recreation_dogsled", 
-                "recreation_fishing", "recreation_general", "recreation_hiking", 
-                "recreation_horseriding", "recreation_hunting", "recreation_mountainsports", 
-                "recreation_offroad", "recreation_photography", "recreation_snowsport", 
-                "recreation_tourism", "recreation_watersports")
-rast <- rastfun(flickramap, recreation, 10000, "recreation_all")
 
-
-#Make a raster of all es for normalising
-alles <- c("abiotic_aurora", "abiotic_coastal", "abiotic_geology", "abiotic_ice", 
-           "abiotic_volcanic", "abiotic_water", "biotic_bird", "biotic_ecosystem", 
-           "biotic_fungus", "biotic_harvesting_animal", "biotic_harvesting_berry", 
-           "biotic_harvesting_fish", "biotic_harvesting_hay", "biotic_harvesting_mushroom", 
-           "biotic_harvesting_produce", "biotic_harvesting_seafood", "biotic_harvesting_wood", 
-           "biotic_invertebrate", "biotic_livestock", "biotic_managed", 
-           "biotic_marine", "biotic_plant", "biotic_reptile", "biotic_traces", 
-           "biotic_wildlife", "no", "pet", "recreation_air", "recreation_bonfire", 
-           "recreation_camping", "recreation_cycling", "recreation_diving", 
-           "recreation_dogsled", "recreation_fishing", "recreation_general", 
-           "recreation_hiking", "recreation_horseriding", "recreation_hunting", 
-           "recreation_mountainsports", "recreation_offroad", "recreation_photography", 
-           "recreation_snowsport", "recreation_tourism", "recreation_watersports")
-rast <- rastfun(flickramap, alles, 10000, "allphotos")
 
 #END######################
