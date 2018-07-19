@@ -74,9 +74,9 @@ lapply(es_select, function(x) {
 } ) 
   
 # Apply rastfun over each esgroup
-lapply(escats$esgroup, function(x) {
-  es <- as.character(escats$escode[escats$esgroup==x])
-  rastfun(flickramap, es, 10000, paste(x, "_all"))
+lapply(unique(escats$esgroup), function(x) {
+  esingroup <- as.character(escats$escode[escats$esgroup==x])
+  rastfun(flickramap, esingroup, 10000, paste(x, "all", sep="_"))
 })
 
 #Make a raster of all es for normalising
