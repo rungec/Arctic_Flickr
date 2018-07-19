@@ -104,6 +104,16 @@ count_es$oup <- with(count_es, paste0(googletag, " (", freq, ")"))
 write.csv(count_es, "Summary_stats_for_Paper3b_Table1_freqgoogletags.csv", row.names=FALSE)
 
 
+#list of words associated with each ecosystem service, for Appendix
+appendix <- codetbl_long3 %>% drop_na() %>%
+                group_by(esgroup, escode, googletag) %>% 
+                summarise(freq=n_distinct(id)) %>% #how many photos is each google word used in
+                group_by(esgroup, escode) %>% #for each esgroup,
+                arrange(escode, desc(freq)) %>% #arrange by descending frequency
+                mutate(oup=paste0(googletag, " (", freq, ")"))
+oup_text <- appendix %>% group_by(esgroup, escode) %>% summarise(oup_text=paste(oup, collapse=", ") )
+write.csv(oup_text, "Summary_stats_for_Paper3b_Table1_appendix_wordsineachescat.csv", row.names=FALSE)
+
 #count frequency of the top ranked word used per photo, from each es group 
 #(eg ignores synonmys in a single photo e.g. "dog", "dog-like mammal", "husky" only "dog" would be counted). 
 es_firsttag <- codetbl_long3 %>% drop_na() %>% group_by(id, esgroup) %>% 
