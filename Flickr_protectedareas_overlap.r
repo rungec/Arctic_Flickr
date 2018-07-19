@@ -14,7 +14,7 @@ setwd(wd)
 #load flickr data
 load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap.Rdata")
 #define regions
-flickramap$region <- flickramap$Country
+flickramap$region <- flickramap$NAME_0
 #might also choose NAME_0 which splits countries into land/EEZ
 
 #load shapefile of protected areas
@@ -87,7 +87,7 @@ esoverlap <- patbl_long %>% group_by(esgroup, region) %>%
 otherbiotic <- patbl_long %>% filter(escode %in% c("biotic_managed", "biotic_bird", "biotic_wildlife")) %>% 
                 group_by(escode, region) %>% 
                 mutate(nphotos=n_distinct(id), nusers=n_distinct(owner)) %>% 
-                  group_by(esgroup, region, in_pa) %>% 
+                  group_by(escode, region, in_pa) %>% 
                     summarise(freq_photos=n_distinct(id),
                               perc_photos=100*n_distinct(id)/max(nphotos),
                               nphotos=max(nphotos),
@@ -95,51 +95,52 @@ otherbiotic <- patbl_long %>% filter(escode %in% c("biotic_managed", "biotic_bir
                               perc_users=100*n_distinct(owner)/max(nusers),
                               nusers=max(nusers)) %>%  data.frame()
 names(otherbiotic)[which(names(otherbiotic)=="escode")] <- "esgroup"
-esoverlap <- rbind(esoverlap, otherbiotic)
+esoutdf <- rbind(esoverlap, otherbiotic)
 
-alloverlap <- patbl_long[grep("EEZ", patbl_long$region, invert=TRUE),] %>% group_by(esgroup) %>% 
+alloverlap <- patbl_long 
+alloverlap$region[grep("EEZ|Seas", alloverlap$region, invert=TRUE)] <- "Arctic Land"
+alloverlap$region[grep("EEZ|Seas", alloverlap$region)] <- "Arctic Marine"
+alloverlapdf <- alloverlap %>% group_by(esgroup, region) %>% 
   mutate(nphotos=n_distinct(id), nusers=n_distinct(owner)) %>% 
-  group_by(esgroup, in_pa) %>% 
+  group_by(esgroup, region, in_pa) %>% 
   summarise(freq_photos=n_distinct(id),
             perc_photos=100*n_distinct(id)/max(nphotos),
             nphotos=max(nphotos),
             freq_users=n_distinct(owner), 
             perc_users=100*n_distinct(owner)/max(nusers),
             nusers=max(nusers)) %>%  data.frame()
-alloverlap$region <- "Arctic"
-alloverlapeez <- patbl_long[grep("EEZ", patbl_long$region),] %>% group_by(esgroup) %>% 
-  mutate(nphotos=n_distinct(id), nusers=n_distinct(owner)) %>% 
-  group_by(esgroup, in_pa) %>% 
-  summarise(freq_photos=n_distinct(id),
-            perc_photos=100*n_distinct(id)/max(nphotos),
-            nphotos=max(nphotos),
-            freq_users=n_distinct(owner), 
-            perc_users=100*n_distinct(owner)/max(nusers),
-            nusers=max(nusers)) %>%  data.frame()
-alloverlap$region <- "Arctic_EEZ"
-esoverlap <- rbind(esoverlap, alloverlapeez)
 
-write.csv(esoverlap, "Summary_stats_for_Paper3b_PAoverlap_byesgroup.csv", row.names=FALSE)
+esoutdf<- rbind(esoutdf, alloverlapdf)
+
+write.csv(esoutdf, "Summary_stats_for_Paper3b_PAoverlap_byesgroup.csv", row.names=FALSE)
 
 
 
 ###################
 ###Make plots
 ###################
+esoutdf <- read.csv("Summary_stats_for_Paper3b_PAoverlap_byesgroup.csv", header=TRUE)
 
-paphotos <- subset(esoverlap, esoverlap$in_pa==TRUE & esoverlap$esgroup %in% c("abiotic", "biotic", "recreation"))
+#set up data
+paphotos <- subset(esoutdf, esoutdf$in_pa==TRUE & 
+                     esoutdf$esgroup %in% c("abiotic", "biotic", "recreation") & 
+                     esoutdf$region!="High Seas") #only a few points, dropped to make graph more succinct
+paphotos$region[paphotos$region=="Svalbard and Jan Mayen"] <- "Svalbard"
+
+
 paphotos_noeez <- paphotos[grep("EEZ", paphotos$region, invert=TRUE), ]
-paphotos_noeez$region <- as.factor(paphotos_noeez$region )
-paphotos_noeez$esgroup <- as.factor(paphotos_noeez$esgroup )
-paphotos_noeez <- droplevels(paphotos_noeez)
+paphotos_noeez[, c("region", "esgroup")] <- lapply(paphotos_noeez[, c("region", "esgroup")], factor)
 
 
+#plot number of photos inside protected areas
 p <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
   geom_bar(stat='identity', position = 'dodge') +
   ylab("Photos inside PAs (%)") +
-  theme_minimal() +
-  theme(legend.position="bottom", axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
-  scale_fill_manual(values = c("grey70", rev(viridisLite::viridis(5)[2:3])),
+  theme_minimal(16) +
+  theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
+        axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
+  #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
+  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou", type="discrete")[c(1,3)]),
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -150,7 +151,56 @@ p <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
                       byrow = T, # also the guide needs to be reversed
                       reverse = F, label.position = "bottom"))  
     #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
-ggsave(filename="Perc_photos_inPAs_byregion_esgroup.png"), p)
+ggsave(filename="Perc_photos_inPAs_byregion_esgroup.png", p)
 
+#plot number of users taking photos inside protected areas
+p <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
+  geom_bar(stat='identity', position = 'dodge') +
+  ylab("Users taking photos inside PAs (%)") +
+  theme_minimal(16) +
+  theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
+        axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
+  #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
+  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou", type="discrete")[c(1,3)]),
+                    name = element_blank(),
+                    guide = guide_legend(
+                      direction = "horizontal",
+                      keyheight = unit(3, units = "mm"),
+                      keywidth = unit(30/length(labels), units = "mm"),
+                      title.position = 'top',
+                      title.hjust = 0.5, label.hjust = 1, nrow = 1,
+                      byrow = T, # also the guide needs to be reversed
+                      reverse = F, label.position = "bottom"))  
+    #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
+ggsave(filename="Perc_users_inPAs_byregion_esgroup.png", p)
 
+###########
+photosbyregion <- subset(esoutdf, esoutdf$esgroup %in% c("abiotic", "biotic", "recreation") & 
+                           esoutdf$region!="High Seas") #only a few points, dropped to make graph more succinct
+photosbyregion$region[photosbyregion$region=="Svalbard and Jan Mayen"] <- "Svalbard"
+photosbyregion$region[photosbyregion$region=="Arctic"] <- "Arctic Land"
+photosbyregion <- photosbyregion[grep("EEZ", photosbyregion$region, invert=TRUE), ]
+photosbyregion <- photosbyregion %>% group_by(region, esgroup) %>% summarise(nphotos=first(nphotos))
+photosbyregion[, c("region", "esgroup")] <- lapply(photosbyregion[, c("region", "esgroup")], factor)
+
+#plot number of photos in each region, by esgroup
+p <- ggplot(photosbyregion, aes(x=region, y=nphotos/100000, group=esgroup, fill=esgroup)) +
+  geom_bar(stat='identity', position = 'dodge') +
+  ylab(expression(Number~of~photos~(x~10^{5}))) +
+  theme_minimal(16) +
+  theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
+        axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
+  #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
+  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou", type="discrete")[c(1,3)]),
+                    name = element_blank(),
+                    guide = guide_legend(
+                      direction = "horizontal",
+                      keyheight = unit(3, units = "mm"),
+                      keywidth = unit(30/length(labels), units = "mm"),
+                      title.position = 'top',
+                      title.hjust = 0.5, label.hjust = 1, nrow = 1,
+                      byrow = T, # also the guide needs to be reversed
+                      reverse = F, label.position = "bottom"))  
+#coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
+ggsave(filename="Num_photos_byregion_esgroup.png", p)
 
