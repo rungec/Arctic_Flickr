@@ -1,0 +1,380 @@
+---
+title: "GAMtest"
+output: html_document
+---
+
+```{r packages and data}
+require(sf)
+require(raster)
+require(sp)
+require(tidyverse)
+require(lubridate)
+require(mgcv)
+require(rnaturalearth)
+
+# flickr data
+load("Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
+
+# protected areas
+PA <- st_read("Arctic_Protected_areas_2017/CAFF_Protected_Areas_20_01_2017_nplaea.shp")
+# because PA has some invalid geometries (i.e. st_is_valid()) we need to buffer PA to fix these
+PAbuf <- st_buffer(PA,0)
+
+# bounding box for entire Arctic
+bb <- st_sfc(st_multipoint(matrix(c(-180:180,rep(60,361)),ncol=2)),
+             crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs ") %>%
+  st_sf() %>% 
+  st_transform(st_crs(flickramap)) %>% 
+  st_convex_hull()
+
+ggplot(bb)+
+  geom_sf()
+
+# country
+
+# countries <- rbind(raster::getData('GADM', country='CAN', level=0),
+#                    raster::getData('GADM', country='USA', level=0),
+#                    raster::getData('GADM', country='ISL', level=0),
+#                    raster::getData('GADM', country='NOR', level=0),
+#                    raster::getData('GADM', country='FRO', level=0),
+#                    raster::getData('GADM', country='FIN', level=0),
+#                    raster::getData('GADM', country='GRL', level=0),
+#                    raster::getData('GADM', country='SJM', level=0),
+#                    raster::getData('GADM', country='SWE', level=0),
+#                    raster::getData('GADM', country='RUS', level=0)) %>% 
+#   st_as_sf() %>% 
+#   st_transform(st_crs(flickramap)) %>% 
+#   st_simplify(preserveTopology = TRUE,10000) #TODO:when doing for real, comment out this line!
+
+# for natural earth, SJM seems to be lumped in woth NOR
+countries <- ne_countries(scale="large",returnclass = "sf")  %>% 
+  filter(adm0_a3 %in% c("CAN","USA","ISL","NOR","FRO","FIN","GRL","SJM","SWE","RUS")) %>% 
+  st_transform(st_crs(flickramap)) %>% 
+  st_intersection(bb) 
+
+ggplot(countries)+
+  geom_sf(aes(fill=adm0_a3))
+
+# flickr
+AllFlickr <- read.csv("Flickr_global_nphotostaken_byhr_2000to2018.csv") %>% 
+  mutate(year=year(datetime)) %>% 
+  filter(year>=min(flickramap$year)) %>% 
+  group_by(year) %>% 
+  summarize("Total Flickr Photos" = sum(total))
+
+
+
+# naturalearth layers, change ne_load() with ne_download() if the data is not downloaded yet
+roads <- ne_load(type="roads",
+                     scale="large",
+                     returnclass = "sf",
+                     destdir = getwd())  %>% 
+  st_transform(st_crs(flickramap)) %>% 
+  st_intersection(bb)
+
+ggplot(roads)+
+  geom_sf()
+
+airports <- ne_load(type="airports",
+                     scale="large",
+                     returnclass = "sf",
+                     destdir = getwd())  %>% 
+  st_transform(st_crs(flickramap)) %>% 
+  st_intersection(bb)
+
+ggplot(airports)+
+  geom_sf()
+
+ports <- ne_load(type="ports",
+                     scale="large",
+                     returnclass = "sf",
+                     destdir = getwd())  %>% 
+  st_transform(st_crs(flickramap)) %>% 
+  st_intersection(bb)
+
+ggplot(ports)+
+  geom_sf()
+
+populated_places <- ne_load(type="populated_places",
+                     scale="large",
+                     returnclass = "sf",
+                     destdir = getwd())  %>% 
+  st_transform(st_crs(flickramap)) %>% 
+  st_intersection(bb)
+
+ggplot(populated_places)+
+  geom_sf()
+
+urban_areas <- ne_load(type="urban_areas",
+                     scale="large",
+                     returnclass = "sf",
+                     destdir = getwd())  %>% 
+  st_transform(st_crs(flickramap)) %>% 
+  st_intersection(bb)
+
+ggplot(urban_areas)+
+  geom_sf()
+
+```
+
+We have to create a hexagonal "raster" grid (not an actual raster)
+
+```{r hex grid}
+cell_diameter <- 10000 #TODO: when doing for real, make this smaller
+
+# switch to sp for the spsample function
+ext <- as(st_buffer(bb,cell_diameter), "Spatial")
+projection(ext) <- sf::st_crs(flickramap)$proj4string
+
+# generate hexagon grid
+grid <- spsample(ext,
+                 type = "hexagonal",
+                 cellsize = cell_diameter,
+                 offset = c(0.5, 0.5)) %>% 
+  HexPoints2SpatialPolygons(dx = cell_diameter) %>% 
+  st_as_sf() %>% 
+  st_intersection(bb) %>% 
+  rowwise() %>% 
+  mutate(Latitude = st_coordinates(st_centroid(geometry))[2],
+         Longitude = st_coordinates(st_centroid(geometry))[1]) %>% 
+  st_as_sf(crs=st_crs(bb))
+
+# ggplot(grid)+
+#   geom_sf()
+```
+
+Then, let's see which countries overlap which grid cell and if there is overlap with protected areas. If there is >20% overlap with PA then we consider that cell as a PA, we justify this because of the halo effect of PAs, people stay just outside PAs where there are accomodations.
+
+```{r custom functions}
+
+# create a function to measure proportion of elements of sf1 are covered by sf2
+prop_overlap <- function(sf1,sf2){
+  area <- as.numeric(st_area(sf1))
+  dist <- map(st_geometry(sf1),
+              function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
+                st_intersection(sf2) %>% 
+                st_area() %>% 
+                as.numeric()) %>% 
+    lapply(function(x) ifelse(is.null(x), NA, x)) %>% 
+    lapply(function(x) ifelse(is.na(x), 0, x)) %>%
+    unlist()
+  return(dist/area)
+}
+
+# create a function to measure which elements of sf1 are most covered by elements of sf2
+most_overlap <- function(sf1,sf2,column,missing){
+  most <- suppressWarnings(map(st_geometry(sf1),
+                               function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
+                                 st_sf() %>% 
+                                 st_intersection(.,sf2) %>% 
+                                 mutate(area=st_area(.)) %>%
+                                 filter(area==max(area)) %>% 
+                                 data.frame() %>% 
+                                 select(column))) %>% 
+    lapply(function(x) ifelse(nrow(x)==0, missing, x)) %>% 
+    unlist()
+  return(most)
+}
+
+# create a function to measure the length of sf2 contained in elements of sf1
+length_overlap <- function(sf1,sf2){
+  lengths <- map(st_geometry(sf1),
+                 function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
+                   st_intersection(.,sf2) %>% 
+                   st_combine() %>% 
+                   st_sf() %>% 
+                   mutate(length=as.numeric(sum(st_length(.)))) %>%
+                   data.frame() %>% 
+                   select(length)) %>% 
+    lapply(function(x) ifelse(nrow(x)==0, 0, x)) %>% 
+    unlist()
+}
+```
+
+
+```{r overlaps,message=FALSE}
+# protected areas
+grid$propPA <- prop_overlap(grid,PAbuf)
+grid$PA <- grid$propPA>0.2
+
+# country
+grid$country <- most_overlap(grid,countries,"sovereignt","Ocean")
+
+# roads
+grid$roadlength <- length_overlap(grid,roads)
+grid$dist2road <- st_distance(grid,st_combine(roads))
+
+# airports
+grid$airports <- lengths(st_intersects(grid,airports))
+grid$dist2airports <- st_distance(grid,st_combine(airports))
+
+# ports
+grid$ports <- lengths(st_intersects(grid,ports))
+grid$dist2ports <- st_distance(grid,st_combine(ports))
+
+
+# populated places
+grid$populated_places <- lengths(st_intersects(grid,populated_places))
+grid$dist2populated_places <- st_distance(grid,st_combine(populated_places))
+
+
+# urban area
+grid$urban_areas <- prop_overlap(grid,urban_areas)
+grid$dist2urban_areas <- st_distance(grid,st_combine(urban_areas))
+
+head(grid)
+```
+
+We also need to calculate the number of Flickr photos per year and correct it based on total Flickr usage over the years
+
+```{r by year}
+#  grid by year
+gridYear <- sapply(split(flickramap, flickramap$year),
+                   function(x) lengths(st_intersects(grid,x))) %>% 
+  cbind(grid,.) %>% 
+  gather(key=year,value=photoCount,starts_with("X")) %>% 
+  mutate(year=as.numeric(substr(year,2,5)))
+
+
+byYear <- gridYear %>%
+  data.frame() %>% 
+  group_by(year) %>% 
+  summarise("Artic Photos"=sum(photoCount)) %>% 
+  left_join(AllFlickr,by="year") %>% 
+  mutate("Percent Traffic"=.$"Artic Photos"/.$"Total Flickr Photos",
+         correctionFact=mean(.$"Total Flickr Photos")/.$"Total Flickr Photos") %>% 
+  gather(key="variable",value="value",-year)
+
+correct <- byYear %>% 
+  filter(variable=="correctionFact") %>% 
+  select(-variable)
+byYear <- byYear %>% 
+  filter(variable!="correctionFact")
+```
+
+
+Now that we have all our basic data ready to go, let's vizualize!
+
+First, lets see if there is a change in the number of users over time?
+```{r users}
+plotData <- byYear
+#plot showing all, arctic, and % traffic
+unique(plotData$variable)
+#reorder
+plotData$variable <- ordered(plotData$variable,levels=c("Total Flickr Photos","Artic Photos","Percent Traffic"))
+ggplot(plotData) + 
+  geom_line(aes(x=year,y=value)) +
+  facet_grid(vars(variable),scales="free_y")
+```
+
+Both the total number of photos on Flickr and in the Arctic increase over time, but the Arctic represents an increasing share of Flickr's yearly photo traffic.
+
+Are these increasing numbers of tourists always visiting the same places, or are they exploring new grounds?
+
+```{r footprint}
+# spatial footprint expanded?
+plotData <- filter(gridYear,photoCount>0) %>% 
+  left_join(correct,by="year") %>% 
+  mutate(correctedPhotoCount=photoCount*value)
+
+ggplot(plotData)+
+  geom_histogram(aes(x=correctedPhotoCount))+
+  scale_y_log10() +
+  facet_wrap(vars(year)) 
+```
+
+```{r footprint2}
+# or
+plotData <- gridYear %>% 
+  group_by(year) %>% 
+  summarise(footprint=mean(photoCount>0)) %>% 
+  mutate(type="Overall Flickr Footprint")
+
+
+equaln_sample_flickr <- flickramap %>% 
+  group_by(year) %>% 
+  sample_n(as.numeric(table(flickramap$year)[1]))
+
+gridYear_equaln <- sapply(split(equaln_sample_flickr, equaln_sample_flickr$year),
+                          function(x) lengths(st_intersects(grid,x))) %>% 
+  cbind(grid,.) %>% 
+  gather(key=year,value=photoCount,starts_with("X")) %>% 
+  mutate(year=as.numeric(substr(year,2,5)))
+
+plotData_equaln <- gridYear_equaln %>% 
+  group_by(year) %>% 
+  summarise(footprint=mean(photoCount>0) )%>% 
+  mutate(type="With Equal N")
+
+trafficn_sample_flickr <- flickramap %>% 
+  mutate(year=as.numeric(year)) %>% 
+  nest(-year)  %>% 
+  left_join(correct,by="year") %>% 
+  mutate(n=round(map_dbl(data, nrow)/max(value)*value)) %>%
+  mutate(Sample = map2(data, n, sample_n)) %>%
+  unnest(Sample) %>% 
+  st_as_sf(crs = st_crs(flickramap))
+
+table(trafficn_sample_flickr$year)
+table(flickramap$year)
+
+gridYear_trafficn <- sapply(split(trafficn_sample_flickr, trafficn_sample_flickr$year),
+                          function(x) lengths(st_intersects(grid,x))) %>% 
+  cbind(grid,.) %>% 
+  gather(key=year,value=photoCount,starts_with("X")) %>% 
+  mutate(year=as.numeric(substr(year,2,5)))
+
+plotData_trafficn <- gridYear_trafficn %>% 
+  group_by(year) %>% 
+  summarise(footprint=mean(photoCount>0)) %>% 
+  mutate(type="With Increased Arctic Traffic")
+
+plotDataAll <- rbind(plotData,plotData_equaln,plotData_trafficn)
+
+plotDataAll$type <- ordered(plotDataAll$type,levels = unique(plotDataAll$type)[c(1,3,2)])
+
+ggplot(plotDataAll)+
+  geom_area(aes(x=year,y=footprint,fill=type),position = "identity")+
+  scale_fill_manual(values=c("#1f78b4","#b2df8a","#a6cee3"))
+```
+
+```{r footprint3}
+# or
+plotData <- gridYear %>% 
+  group_by(year,country) %>% 
+  summarise(footprint=mean(photoCount>0))
+
+ggplot(plotData)+
+  geom_line(aes(x=year,y=footprint,color=country))
+```
+
+Let's see if we can see what is driving these changes
+
+```{r GAM}
+save(gridYear,file = paste0("gridYear_",cell_diameter,"_m"))
+gridYearmod <- gridYear %>% 
+  filter(country!="Russia") %>% 
+  mutate(photoCountlog10=log10(photoCount+1))
+
+g <- gam(photoCountlog10 ~ s(Latitude)+
+           s(Longitude)+
+           year+
+           country+
+           propPA+
+           PA+
+           roadlength+
+           dist2road+
+           airports+
+           dist2airports+
+           ports+
+           dist2ports+
+           populated_places+
+           dist2populated_places+
+           urban_areas+
+           dist2urban_areas,
+         data = gridYearmod, method = "REML")
+gam.check(g)
+summary(g)
+```
+
+
