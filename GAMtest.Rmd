@@ -47,11 +47,13 @@ ggplot(bb)+
 #   st_simplify(preserveTopology = TRUE,10000) #TODO:when doing for real, comment out this line!
 
 # for natural earth, SJM seems to be lumped in woth NOR
-countries <- ne_countries(scale="large",returnclass = "sf")  %>% 
-  filter(adm0_a3 %in% c("CAN","USA","ISL","NOR","FRO","FIN","GRL","SJM","SWE","RUS")) %>% 
+countries <- ne_states(returnclass = "sf")  %>% 
+  filter(adm0_a3 %in% c("CAN","USA","ISL","NOR","FRO","FIN","GRL","SWE","RUS")) %>% 
   st_transform(st_crs(flickramap)) %>% 
-  st_intersection(bb) 
-
+  st_intersection(bb) %>% 
+  mutate(adm0_a3 = replace(adm0_a3, name=="Svalbard", "SJM")) %>% 
+  group_by(adm0_a3) %>% summarise()
+ 
 ggplot(countries)+
   geom_sf(aes(fill=adm0_a3))
 
@@ -152,7 +154,7 @@ prop_overlap <- function(sf1,sf2){
   area <- as.numeric(st_area(sf1))
   dist <- map(st_geometry(sf1),
               function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
-                st_intersection(sf2) %>% 
+                st_intersection(.,sf2) %>% 
                 st_area() %>% 
                 as.numeric()) %>% 
     lapply(function(x) ifelse(is.null(x), NA, x)) %>% 
