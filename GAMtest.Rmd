@@ -3,7 +3,7 @@ title: "GAMtest"
 output: html_document
 ---
 
-```{r packages and data}
+```{r packages and data, cache=T}
 require(sf)
 require(raster)
 require(sp)
@@ -11,6 +11,7 @@ require(tidyverse)
 require(lubridate)
 require(mgcv)
 require(rnaturalearth)
+require(lwgeom)
 
 # flickr data
 load("Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
@@ -50,6 +51,7 @@ ggplot(bb)+
 countries <- ne_states(returnclass = "sf")  %>% 
   filter(adm0_a3 %in% c("CAN","USA","ISL","NOR","FRO","FIN","GRL","SWE","RUS")) %>% 
   st_transform(st_crs(flickramap)) %>% 
+  lwgeom::st_make_valid() %>%
   st_intersection(bb) %>% 
   mutate(adm0_a3 = replace(adm0_a3, name=="Svalbard", "SJM")) %>% 
   group_by(adm0_a3) %>% summarise()
@@ -121,7 +123,7 @@ ggplot(urban_areas)+
 
 We have to create a hexagonal "raster" grid (not an actual raster)
 
-```{r hex grid}
+```{r hex grid, cache=T}
 cell_diameter <- 10000 #TODO: when doing for real, make this smaller
 
 # switch to sp for the spsample function
@@ -141,20 +143,20 @@ grid <- spsample(ext,
          Longitude = st_coordinates(st_centroid(geometry))[1]) %>% 
   st_as_sf(crs=st_crs(bb))
 
-# ggplot(grid)+
-#   geom_sf()
+ ggplot(grid)+
+   geom_sf()
 ```
 
 Then, let's see which countries overlap which grid cell and if there is overlap with protected areas. If there is >20% overlap with PA then we consider that cell as a PA, we justify this because of the halo effect of PAs, people stay just outside PAs where there are accomodations.
 
-```{r custom functions}
+```{r custom functions, cache=T}
 
 # create a function to measure proportion of elements of sf1 are covered by sf2
 prop_overlap <- function(sf1,sf2){
   area <- as.numeric(st_area(sf1))
   dist <- map(st_geometry(sf1),
               function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
-                st_intersection(.,sf2) %>% 
+                st_intersection(sf2) %>% 
                 st_area() %>% 
                 as.numeric()) %>% 
     lapply(function(x) ifelse(is.null(x), NA, x)) %>% 
@@ -193,33 +195,42 @@ length_overlap <- function(sf1,sf2){
 }
 ```
 
-
-```{r overlaps,message=FALSE}
+```{r overlaps,message=FALSE, dependson=c("packages and data", "custom functions", "hex grid"), cache=T}
 # protected areas
 grid$propPA <- prop_overlap(grid,PAbuf)
 grid$PA <- grid$propPA>0.2
+```
 
+```{r overlaps1, message=FALSE, dependson=c("overlaps"), cache=T}
 # country
-grid$country <- most_overlap(grid,countries,"sovereignt","Ocean")
+grid$country <- most_overlap(grid,countries,"adm0_a3","Ocean")
+```
 
+```{r overlaps2, message=FALSE, dependson=c("overlaps1"), cache=T}
 # roads
 grid$roadlength <- length_overlap(grid,roads)
 grid$dist2road <- st_distance(grid,st_combine(roads))
+```
 
+```{r overlaps3, message=FALSE, dependson=c("overlaps2"), cache=T}
 # airports
 grid$airports <- lengths(st_intersects(grid,airports))
 grid$dist2airports <- st_distance(grid,st_combine(airports))
+```
 
+```{r overlaps4, message=FALSE, dependson=c("overlaps3"), cache=T}
 # ports
 grid$ports <- lengths(st_intersects(grid,ports))
 grid$dist2ports <- st_distance(grid,st_combine(ports))
+```
 
-
+```{r overlaps5, message=FALSE, dependson=c("overlaps4"), cache=T}
 # populated places
 grid$populated_places <- lengths(st_intersects(grid,populated_places))
 grid$dist2populated_places <- st_distance(grid,st_combine(populated_places))
+```
 
-
+```{r overlaps6, message=FALSE, dependson=c("overlaps5"), cache=T}
 # urban area
 grid$urban_areas <- prop_overlap(grid,urban_areas)
 grid$dist2urban_areas <- st_distance(grid,st_combine(urban_areas))
@@ -229,7 +240,7 @@ head(grid)
 
 We also need to calculate the number of Flickr photos per year and correct it based on total Flickr usage over the years
 
-```{r by year}
+```{r by year, cache=T, dependson="overlaps6"}
 #  grid by year
 gridYear <- sapply(split(flickramap, flickramap$year),
                    function(x) lengths(st_intersects(grid,x))) %>% 
@@ -254,11 +265,10 @@ byYear <- byYear %>%
   filter(variable!="correctionFact")
 ```
 
-
 Now that we have all our basic data ready to go, let's vizualize!
 
 First, lets see if there is a change in the number of users over time?
-```{r users}
+```{r users, cache=T}
 plotData <- byYear
 #plot showing all, arctic, and % traffic
 unique(plotData$variable)
@@ -273,7 +283,7 @@ Both the total number of photos on Flickr and in the Arctic increase over time, 
 
 Are these increasing numbers of tourists always visiting the same places, or are they exploring new grounds?
 
-```{r footprint}
+```{r footprint, cache=T}
 # spatial footprint expanded?
 plotData <- filter(gridYear,photoCount>0) %>% 
   left_join(correct,by="year") %>% 
@@ -285,7 +295,7 @@ ggplot(plotData)+
   facet_wrap(vars(year)) 
 ```
 
-```{r footprint2}
+```{r footprint2, cache=T}
 # or
 plotData <- gridYear %>% 
   group_by(year) %>% 
@@ -340,7 +350,7 @@ ggplot(plotDataAll)+
   scale_fill_manual(values=c("#1f78b4","#b2df8a","#a6cee3"))
 ```
 
-```{r footprint3}
+```{r footprint3, cache=T}
 # or
 plotData <- gridYear %>% 
   group_by(year,country) %>% 
@@ -352,7 +362,7 @@ ggplot(plotData)+
 
 Let's see if we can see what is driving these changes
 
-```{r GAM}
+```{r GAM, cache=T, dependson="by year"}
 save(gridYear,file = paste0("gridYear_",cell_diameter,"_m"))
 gridYearmod <- gridYear %>% 
   filter(country!="Russia") %>% 
