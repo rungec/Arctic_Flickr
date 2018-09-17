@@ -20,6 +20,9 @@ flickramap$region <- flickramap$NAME_0
 #load shapefile of protected areas
 pas <- read_sf("D:/Box Sync/Arctic/Data/Ecological/Arctic_Protected_areas_2017/CAFF_Protected_Areas_20_01_2017_nplaea.shp")
 
+#load number on % protected in each country
+perc_inPAs <- read.csv("CAFF_2017_PercentinPAs_byCountry.csv") 
+
 ###################
 ###Preliminary Processing
 ###################
@@ -123,18 +126,18 @@ esoutdf <- read.csv("Summary_stats_for_Paper3b_PAoverlap_byesgroup.csv", header=
 
 #set up data
 paphotos <- subset(esoutdf, esoutdf$in_pa==TRUE & 
-                     esoutdf$esgroup %in% c("abiotic", "biotic", "recreation") & 
+                     esoutdf$esgroup %in% c("abiotic", "biotic") & 
                      esoutdf$region!="High Seas") #only a few points, dropped to make graph more succinct
 paphotos$region[paphotos$region=="Svalbard and Jan Mayen"] <- "Svalbard"
-
-
 paphotos_noeez <- paphotos[grep("EEZ", paphotos$region, invert=TRUE), ]
 paphotos_noeez[, c("region", "esgroup")] <- lapply(paphotos_noeez[, c("region", "esgroup")], factor)
+#add numbers on % area in PAs in each country
+paphotos_noeez <- merge(paphotos_noeez, perc_inPAs, by.x='region', by.y = 'Country', all.x=TRUE)
 
-
-#plot number of photos inside protected areas
-p <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
+#plot percent of photos inside protected areas
+p1 <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
   geom_bar(stat='identity', position = 'dodge') +
+  geom_errorbar(aes(ymin=Percent_inPAs, ymax=Percent_inPAs), color='grey40', lty='solid', lwd=0.75) +
   ylab("Photos inside PAs (%)") +
   theme_minimal(16) +
   theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
@@ -151,10 +154,11 @@ p <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
                       byrow = T, # also the guide needs to be reversed
                       reverse = F, label.position = "bottom"))  
     #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
-ggsave(filename="Perc_photos_inPAs_byregion_esgroup.png", p)
+#ggsave(filename="Perc_photos_inPAs_byregion_esgroup.png", p1)
+#ggsave(filename="Perc_photos_inPAs_byregion_esgroup.pdf", p1)
 
 #plot number of users taking photos inside protected areas
-p <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
+p2 <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
   geom_bar(stat='identity', position = 'dodge') +
   ylab("Users taking photos inside PAs (%)") +
   theme_minimal(16) +
@@ -172,10 +176,11 @@ p <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
                       byrow = T, # also the guide needs to be reversed
                       reverse = F, label.position = "bottom"))  
     #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
-ggsave(filename="Perc_users_inPAs_byregion_esgroup.png", p)
+#ggsave(filename="Perc_users_inPAs_byregion_esgroup.png", p2)
+#ggsave(filename="Perc_users_inPAs_byregion_esgroup.pdf", p2)
 
 ###########
-photosbyregion <- subset(esoutdf, esoutdf$esgroup %in% c("abiotic", "biotic", "recreation") & 
+photosbyregion <- subset(esoutdf, esoutdf$esgroup %in% c("abiotic", "biotic") & 
                            esoutdf$region!="High Seas") #only a few points, dropped to make graph more succinct
 photosbyregion$region[photosbyregion$region=="Svalbard and Jan Mayen"] <- "Svalbard"
 photosbyregion$region[photosbyregion$region=="Arctic"] <- "Arctic Land"
@@ -184,7 +189,7 @@ photosbyregion <- photosbyregion %>% group_by(region, esgroup) %>% summarise(nph
 photosbyregion[, c("region", "esgroup")] <- lapply(photosbyregion[, c("region", "esgroup")], factor)
 
 #plot number of photos in each region, by esgroup
-p <- ggplot(photosbyregion, aes(x=region, y=nphotos/100000, group=esgroup, fill=esgroup)) +
+p3 <- ggplot(photosbyregion, aes(x=region, y=nphotos/100000, group=esgroup, fill=esgroup)) +
   geom_bar(stat='identity', position = 'dodge') +
   ylab(expression(Number~of~photos~(x~10^{5}))) +
   theme_minimal(16) +
@@ -202,5 +207,14 @@ p <- ggplot(photosbyregion, aes(x=region, y=nphotos/100000, group=esgroup, fill=
                       byrow = T, # also the guide needs to be reversed
                       reverse = F, label.position = "bottom"))  
 #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
-ggsave(filename="Num_photos_byregion_esgroup.png", p)
+#ggsave(filename="Num_photos_byregion_esgroup.png", p3)
+#ggsave(filename="Num_photos_byregion_esgroup.pdf", p3)
 
+
+################
+#COMBINE ALL THREE PLOTS
+require(ggpubr)
+
+pout <- ggarrange(p3, p2, p1, labels=c("A", "B", "C"), ncol=3, nrow=1, common.legend = TRUE, legend="bottom", font.label = list(size = 18, face='plain'))
+ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs.png", width=1280, height=480)
+ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs.pdf", width=16, height=7)

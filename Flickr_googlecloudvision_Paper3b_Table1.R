@@ -131,6 +131,8 @@ write.csv(count_es_firsttag, "Summary_stats_for_Paper3b_Table1_freqgoogletags_v2
 #Figure 1 for paper 3b: word cloud for biotic and abiotic nature
 library(wordcloud)
 library(extrafont)
+require(ggpubr) #ggarrange
+
 #set up data
 count_es <- codetbl_long3 %>% drop_na() %>%
   group_by(esgroup, googletag) %>% 
@@ -155,9 +157,6 @@ par(mfrow=c(1,2))
 dev.off()
 
 
-
-
-                              
 ############
 #Other results
 #find words used with 'water'
