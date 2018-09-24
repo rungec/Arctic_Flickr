@@ -46,6 +46,7 @@ ArcticFlickr <- flickramap %>%
 ArcticFlickr$year <- as.numeric(ArcticFlickr$year)
 AllFlickr <- cbind(AllFlickr[1:14,], ArcticFlickr)
 AllFlickr$correction_factor <- AllFlickr$Arctic_Flickr_Photos/AllFlickr$Total_Flickr_Photos
+write.csv(AllFlickr, "ArcticandGlobalFlickrTrends.csv")
 
 #######################
 #Function to rasterise annually where the value in each cell = corrected PUD
@@ -66,6 +67,22 @@ rastfun <- function(curryear, curres) {
 	subdat <- flickramap[flickramap$year==curryear, ]
     currrast <- rasterize(subdat, rastamap, fun=function(x, ...){ length(unique(x))*corrfac }, field="owner_date", update=TRUE, filename=sprintf("density_mapping/annual_rasters_pud_corrected/Flickr_correctedPUDper%scell_%s.tif", curres, curryear), overwrite=TRUE)
 }
+
+#Function to rasterise annually where the value in each cell = uncorrected PUD
+rastfun2 <- function(curryear, curres) {
+  #set the blank raster  
+  rasttemplate <- raster(xmn=-3335000, xmx=3335000, ymn=-3335000, ymx=3335000, res=curres, crs=rcrs$proj4string)
+  if(file.exists(sprintf("Boundaries/Arctic_circle/AMAP/AMAP_%smres.tif", curres))==FALSE){ 
+    rastamap <- rasterize(amap, rasttemplate, filename=sprintf("Boundaries/Arctic_circle/AMAP/AMAP_%smres.tif",curres))
+  } else {
+    rastamap <- raster(sprintf("Boundaries/Arctic_circle/AMAP/AMAP_%smres.tif", curres))
+  }
+  rastamap[rastamap==1] <- 0
+  #fill with pud
+  subdat <- flickramap[flickramap$year==curryear, ]
+  currrast <- rasterize(subdat, rastamap, fun=function(x, ...){ length(unique(x))}, field="owner_date", update=TRUE, filename=sprintf("density_mapping/annual_rasters_pud_amap/Flickr_PUDper%scell_%s.tif", curres, curryear), overwrite=TRUE)
+}
+
 #######################
 #Function to calculate annual growth rate
 growthfun <- function(t2, curres) {
@@ -76,12 +93,62 @@ growthfun <- function(t2, curres) {
 							filename=sprintf("density_mapping/annual_growth_rasters/Flickr_intrinsicgrowthper%scell_%sto%s.tif", curres, t1,t2))
 }
 
+#Function to calculate annual growth rate - uncorrected
+growthfun2 <- function(t2, curres) {
+  t1 <- t2-1
+  X1 <- raster(sprintf("density_mapping/annual_rasters_pud_amap/Flickr_PUDper%scell_%s.tif", curres, t1))
+  X2 <- raster(sprintf("density_mapping/annual_rasters_pud_amap/Flickr_PUDper%scell_%s.tif", curres, t2))
+  growthrast <- overlay(X1, X2, fun=function(x,y) {return((log(x)-log(y)))}, 
+                        filename=sprintf("density_mapping/annual_growth_rasters_uncorrected/Flickr_intrinsicgrowthper%scell_%sto%s.tif", curres, t1,t2))
+}
+
+#######################
+#Function to calculate lm of slope of growth over years
+slopemodfun <- function(t1, t2, curres){
+  years <- seq(t1, t2, 1)
+  filelist <- lapply(years, function(x) sprintf("density_mapping/annual_rasters_pud_amap/Flickr_PUDper%scell_%s.tif", curres, x))
+  rstack <- stack(filelist)
+  rslope <- calc(rstack, fun=function(x) {
+    if(sum(is.na(x))==0 & (sum(x!=0)>2)==TRUE) {
+      df <- data.frame(years, x)
+      m1 <- lm(df)
+      currslope <- coefficients(m1)[2]
+    } else {
+      currslope <- NA
+    }
+    return(currslope)
+    }, filename=sprintf("density_mapping/boom_bust_model/Flickr_slope%sto%sper%scell.tif", t1, t2, curres), overwrite=TRUE)
+  rpval <- calc(rstack, fun=function(x) {
+    if(sum(is.na(x))==0 & (sum(x!=0)>2)==TRUE) { 
+      df <- data.frame(years, x)
+      m1 <- lm(df)
+      try(pval <- coef(summary(m1))["x","Pr(>|t|)"])
+    } else {
+      pval <- NA
+    } 
+    return(pval)
+  }, filename=sprintf("density_mapping/boom_bust_model/Flickr_pval%sto%sper%scell.tif", t1, t2, curres), overwrite=TRUE)
+}
+  
+
 #######################
 #Create rasters of corrected annual pud
 lapply(2004:2017, function(x) rastfun(x, curres))
 
 #######################
-#Create rasters of annual growth rate
+#Create rasters of corrected annual growth rate
 lapply(2005:2017, function(x) growthfun(x, curres))
+
+#######################
+#Create rasters of uncorrected annual pud
+lapply(2004:2017, function(x) rastfun2(x, curres))
+
+#######################
+#Create rasters of uncorrected annual growth rate
+lapply(2005:2017, function(x) growthfun2(x, curres))
+
+#######################
+#Create rasters of slope and pval
+slopemodfun(2012, 2017, curres)
 
 ##END
