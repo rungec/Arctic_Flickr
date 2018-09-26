@@ -48,6 +48,25 @@ AllFlickr <- cbind(AllFlickr[1:14,], ArcticFlickr)
 AllFlickr$correction_factor <- AllFlickr$Arctic_Flickr_Photos/AllFlickr$Total_Flickr_Photos
 write.csv(AllFlickr, "ArcticandGlobalFlickrTrends.csv")
 
+#Seasonal statistics on flickr use in the Arctic
+a_all_pud <- flickramap %>% st_set_geometry(NULL) %>% 
+  group_by(Country) %>% 
+  summarise("Arctic_allseasons_PUDs" = length(unique(owner_date)),
+            "Arctic_allseasons_Photos" = length(unique(id)))
+a_win_pud <- flickramap %>% st_set_geometry(NULL) %>% 
+  group_by(Country) %>% 
+  filter(month %in% c("01", "02", "03", "04", "11", "12")) %>% 
+  summarise("Arctic_winter_PUDs" = length(unique(owner_date)),
+            "Arctic_winter_Photos" = length(unique(id)))
+a_sum_pud <- flickramap %>% st_set_geometry(NULL) %>% 
+  group_by(Country) %>% 
+  filter(month %in% c("05", "06", "07", "08", "09", "10")) %>% 
+  summarise("Arctic_summer_PUDs" = length(unique(owner_date)),
+            "Arctic_summer_Photos" = length(unique(id)))
+a_allseasons <- cbind(a_all_pud, a_win_pud, a_sum_pud)
+write.csv(a_allseasons, "Arctic_Flickr_photos_puds_byseasonandcountry.csv", row.names=FALSE)
+
+
 #######################
 #Function to rasterise annually where the value in each cell = corrected PUD
 #PUD = photo unit days
@@ -81,6 +100,24 @@ rastfun2 <- function(curryear, curres) {
   #fill with pud
   subdat <- flickramap[flickramap$year==curryear, ]
   currrast <- rasterize(subdat, rastamap, fun=function(x, ...){ length(unique(x))}, field="owner_date", update=TRUE, filename=sprintf("density_mapping/annual_rasters_pud_amap/Flickr_PUDper%scell_%s.tif", curres, curryear), overwrite=TRUE)
+}
+
+rastfun3 <- function(season, curres) {
+  #set the blank raster  
+  rasttemplate <- raster(xmn=-3335000, xmx=3335000, ymn=-3335000, ymx=3335000, res=curres, crs=rcrs$proj4string)
+  if(file.exists(sprintf("Boundaries/Arctic_circle/AMAP/AMAP_%smres.tif", curres))==FALSE){ 
+    rastamap <- rasterize(amap, rasttemplate, filename=sprintf("Boundaries/Arctic_circle/AMAP/AMAP_%smres.tif",curres))
+  } else {
+    rastamap <- raster(sprintf("Boundaries/Arctic_circle/AMAP/AMAP_%smres.tif", curres))
+  }
+  rastamap[rastamap==1] <- 0
+  #fill with pud
+  if(season=="summer") {
+        subdat <- flickramap[flickramap$month %in% c("05", "06", "07", "08", "09", "10"),]
+  } else if (season=="winter") {
+          subdat <- flickramap[flickramap$month %in% c("11", "12", "01", "02", "03", "04"), ]
+  }  
+  currrast <- rasterize(subdat, rastamap, fun=function(x, ...){ length(unique(x))}, field="owner_date", update=TRUE, filename=sprintf("density_mapping/static_rasters_pud_amap/Flickr_PUDper%scell_%s.tif", curres, season), overwrite=TRUE)
 }
 
 #######################
@@ -150,5 +187,10 @@ lapply(2005:2017, function(x) growthfun2(x, curres))
 #######################
 #Create rasters of slope and pval
 slopemodfun(2012, 2017, curres)
+
+#######################
+#Create rasters of seasonal pud
+rastfun3("summer", 10000)
+rastfun3("winter", 10000)
 
 ##END
