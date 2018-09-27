@@ -126,6 +126,7 @@ ggplot(urban_areas)+
 We have to create a hexagonal "raster" grid (not an actual raster)
 
 ```{r hex grid, cache=T}
+
 cell_diameter_footprint <- 5000 #for footprint analysis
 cell_diameter <- 10000 #we use a bigger resolution for the models
 
@@ -262,23 +263,51 @@ We also need to calculate the number of Flickr photos per year and correct it ba
 flickramap$season <- "summer"
 flickramap$season[flickramap$month %in% c("01", "02", "03", "04", "11", "12")] <- "winter"
 flickramap <- flickramap %>% mutate(yearseason = paste(year, season, sep="_"))
+# 
+# #  grid by yearseason
+# gridYear <- sapply(split(flickramap, flickramap$yearseason),
+#                    function(x) lengths(st_intersects(grid,x))) %>% 
+#   cbind(grid,.) %>% 
+#   gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
+#   mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
+#          season=strsplit(yearseason, "_")[[1]][2])
 
-#  grid by yearseason
-gridYear <- sapply(split(flickramap, flickramap$yearseason),
-                   function(x) lengths(st_intersects(grid,x))) %>% 
+#photo-unit-day function
+PUD_grid <- function(flickrrecords,time,grid){
+  sapply(split(flickrrecords,time),
+         function(x){
+           x$col.id <- as.integer(row.names(x))
+           grid$row.id <- as.integer(row.names(grid))
+           PUD <- as.data.frame(st_intersects(grid,x)) %>% 
+             left_join(x,by="col.id") %>% 
+             select(row.id,owner,datetkn) %>% 
+             unique() %>% 
+             group_by(row.id) %>%
+             summarize(PUD=n()) %>% 
+             right_join(grid,by="row.id",) %>% 
+             mutate(PUD=if_else(is.na(PUD),0,as.numeric(PUD))) %>% 
+             select(PUD) %>% 
+             unlist() %>% 
+             as.numeric()
+           return(PUD)
+           })
+}
+
+
+gridYearPUD <- PUD_grid(flickramap,flickramap$yearseason,grid) %>% 
   cbind(grid,.) %>% 
-  gather(key=year,value=photoCount,starts_with("X")) %>% 
+  gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
   mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
          season=strsplit(yearseason, "_")[[1]][2])
 
-byYear <- gridYear %>%
+byYear <- gridYearPUD %>%
   data.frame() %>% 
-  group_by(year) %>% 
+  group_by(yearseason) %>% 
   summarise("Artic Photos"=sum(photoCount)) %>% 
-  left_join(AllFlickr,by="year") %>% 
+  left_join(AllFlickr,by="yearseason") %>% 
   mutate("Percent Traffic"=.$"Artic Photos"/.$"Total Flickr Photos",
          correctionFact=mean(.$"Total Flickr Photos")/.$"Total Flickr Photos") %>% 
-  gather(key="variable",value="value",-year)
+  gather(key="variable",value="value",-yearseason)
 
 correct <- byYear %>% 
   filter(variable=="correctionFact") %>% 
@@ -297,7 +326,7 @@ unique(plotData$variable)
 #reorder
 plotData$variable <- ordered(plotData$variable,levels=c("Total Flickr Photos","Artic Photos","Percent Traffic"))
 ggplot(plotData) + 
-  geom_line(aes(x=year,y=value)) +
+  geom_line(aes(x=yearseason,y=value)) +
   facet_grid(vars(variable),scales="free_y")
 ```
 
@@ -307,43 +336,49 @@ Are these increasing numbers of tourists always visiting the same places, or are
 
 ```{r footprint, cache=T}
 # spatial footprint expanded?
-plotData <- filter(gridYear,photoCount>0) %>% 
-  left_join(correct,by="year") %>% 
-  mutate(correctedPhotoCount=photoCount*value)
+plotData <- filter(gridYear,PUD>0) %>% 
+  left_join(correct,by="yearseason") %>% 
+  mutate(correctedPUD=photoCount*value)
 
 ggplot(plotData)+
-  geom_histogram(aes(x=correctedPhotoCount))+
+  geom_histogram(aes(x=correctedPUD))+
   scale_y_log10() +
-  facet_wrap(vars(year, season), ncol=2) 
+  facet_wrap(vars(yearseason, season), ncol=2) 
 ```
 
 ```{r footprint2, cache=T}
 # or
-plotData <- gridYear %>% 
+plotData <- gridYearPUD %>% 
   group_by(yearseason) %>% 
   summarise(footprint=mean(photoCount>0)) %>% 
   mutate(type="Overall Flickr Footprint")
 
+# this samples n records from each year in flickramap
+# n was the number of records in the first year
+# we want an n equal to the smallest year*season combo, so min(table(flickramap$yearseason))
 equaln_sample_flickr <- flickramap %>% 
   group_by(yearseason) %>% 
-  sample_n(as.numeric(table(flickramap$year)[1]))
+  # sample_n(as.numeric(table(flickramap$year)[1])) #before
+  sample_n(min(table(flickramap$yearseason)))
 
-gridYear_equaln <- sapply(split(equaln_sample_flickr, equaln_sample_flickr$yearseason),
-                          function(x) lengths(st_intersects(grid,x))) %>% 
+
+# this recalculates PUD by yearseason by grid cell for equaln_sample_flickr
+gridYear_equaln <- PUD_grid(equaln_sample_flickr,equaln_sample_flickr$yearseason,grid) %>% 
   cbind(grid,.) %>% 
-  gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
+  gather(key=yearseason,value=PUD,starts_with("X")) %>% 
   mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
          season=strsplit(yearseason, "_")[[1]][2])
 
 plotData_equaln <- gridYear_equaln %>% 
   group_by(yearseason) %>% 
-  summarise(footprint=mean(photoCount>0) )%>% 
+  summarise(footprint=mean(PUD>0) )%>% 
   mutate(type="With Equal N")
 
+
 trafficn_sample_flickr <- flickramap %>% 
-  mutate(year=as.numeric(year)) %>% 
-  nest(-year)  %>% 
-  left_join(correct,by="year") %>% 
+  # mutate(year=as.numeric(year)) %>% 
+  nest(-yearseason)  %>% 
+  left_join(correct,by="yearseason") %>% 
   mutate(n=round(map_dbl(data, nrow)/max(value)*value)) %>%
   mutate(Sample = map2(data, n, sample_n)) %>%
   unnest(Sample) %>% 
@@ -355,13 +390,13 @@ table(flickramap$yearseason)
 gridYear_trafficn <- sapply(split(trafficn_sample_flickr, trafficn_sample_flickr$yearseason),
                           function(x) lengths(st_intersects(grid,x))) %>% 
   cbind(grid,.) %>% 
-  gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
+  gather(key=yearseason,value=PUD,starts_with("X")) %>% 
   mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
          season=strsplit(yearseason, "_")[[1]][2])
 
 plotData_trafficn <- gridYear_trafficn %>% 
   group_by(yearseason) %>% 
-  summarise(footprint=mean(photoCount>0)) %>% 
+  summarise(footprint=mean(PUD>0)) %>% 
   mutate(type="With Increased Arctic Traffic")
 
 plotDataAll <- rbind(plotData,plotData_equaln,plotData_trafficn)
@@ -369,7 +404,7 @@ plotDataAll <- rbind(plotData,plotData_equaln,plotData_trafficn)
 plotDataAll$type <- ordered(plotDataAll$type,levels = unique(plotDataAll$type)[c(1,3,2)])
 
 ggplot(plotDataAll)+
-  geom_area(aes(x=year,y=footprint,fill=type),position = "identity")+
+  geom_area(aes(x=yearseason,y=footprint,fill=type),position = "identity")+
   scale_fill_manual(values=c("#1f78b4","#b2df8a","#a6cee3"))+
   facet_wrap(vars(season))
 ```
