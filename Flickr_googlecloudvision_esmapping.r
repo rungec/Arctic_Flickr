@@ -36,7 +36,7 @@ rcrs <- st_crs(amap)
 #Function to rasterise es where the value in each cell = PUD
 #PUD = photo unit days
 #number of days in a cell when a photo was taken that represents that es
-
+#res is resolution of the grid cell length (NOT area) in metres
 rastfun <- function(data, es, curres, currfile) {
   #extract photos containing that es
   escols <- grep("escode", names(data), value=TRUE)
@@ -98,6 +98,9 @@ rast <- rastfun(flickramap, fishing_es, 10000, "fishing_all")
 farming_es <- c("biotic_harvesting_animal", "biotic_livestock", "biotic_managed")
 rast <- rastfun(flickramap, farming_es, 10000, "livestockfarming_all")
 
+#Make a low resolutios raster of biotic
+esingroup <- as.character(escats$escode[escats$esgroup=="biotic"])
+rastfun(flickramap, esingroup, 100000, "biotic_100km")
 
 
 #END######################

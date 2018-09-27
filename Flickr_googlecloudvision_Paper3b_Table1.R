@@ -19,13 +19,6 @@ flickramap$region <- flickramap$Country
 #Preliminary processing ----
 #set up functions
 
-#set up wordcloud plotfun
-wordplotfun <- function(words, freq, outname, ...){
-  png(filename = sprintf("googlevision/freq_googlelabels/Google_labels_wordcloud_%s.png", outname), width=14, height=14, units="in", type='windows', antialias = "cleartype", res=600)
-  wordcloud(words=words, freq=freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman", ...)
-  dev.off()
-}
-
 #function to find words associated with a keyword
 findfun <- function(data, word, nwords) {
   gwcols <- grep("googletag", names(data), value=TRUE)
@@ -133,7 +126,37 @@ names(count_es_firsttag2)[1] <- "esgroup"
 count_es_firsttag <- rbind(count_es_firsttag, count_es_firsttag2)
 count_es_firsttag$oup <- with(count_es_firsttag, paste0(googletag, " (", freq, ")"))
 write.csv(count_es_firsttag, "Summary_stats_for_Paper3b_Table1_freqgoogletags_v2.csv", row.names = FALSE)
-                              
+
+############
+#Figure 1 for paper 3b: word cloud for biotic and abiotic nature
+library(wordcloud)
+library(extrafont)
+require(ggpubr) #ggarrange
+
+#set up data
+count_es <- codetbl_long3 %>% drop_na() %>%
+  group_by(esgroup, googletag) %>% 
+  summarise(freq=n_distinct(id)) %>% #how many photos is each google word used in
+  group_by(esgroup) %>% 
+  arrange(esgroup, desc(freq))
+bioticwords <- count_es[count_es$esgroup=="biotic",] 
+abioticwords <- count_es[count_es$esgroup=="abiotic",] 
+
+#plot
+
+png(filename = "freq_googlelabels/Google_labels_wordcloud_Figure1_paper3b_wordclouds.png", width=14, height=7, units="in", pointsize=6, type='windows', antialias = "cleartype", res=300)
+par(mfrow=c(1,2)) 
+  p1 <- wordcloud(bioticwords$googletag, bioticwords$freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman")
+  p2 <- wordcloud(abioticwords$googletag, abioticwords$freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman")
+dev.off()
+
+tiff(filename = "freq_googlelabels/Google_labels_wordcloud_Figure1_paper3b_wordclouds.tif", width=14, height=7, units="in", pointsize=6, type='windows', antialias = "cleartype", res=600)
+par(mfrow=c(1,2)) 
+  p1 <- wordcloud(bioticwords$googletag, bioticwords$freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman")
+  p2 <- wordcloud(abioticwords$googletag, abioticwords$freq, random.order=FALSE, scale=c(10,1.5), family="Times New Roman")
+dev.off()
+
+
 ############
 #Other results
 #find words used with 'water'

@@ -3,7 +3,7 @@ title: "GAMtest"
 output: html_document
 ---
 
-```{r packages and data}
+```{r packages and data, cache=T}
 require(sf)
 require(raster)
 require(sp)
@@ -11,6 +11,7 @@ require(tidyverse)
 require(lubridate)
 require(mgcv)
 require(rnaturalearth)
+require(lwgeom)
 
 # flickr data
 load("Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
@@ -21,11 +22,13 @@ PA <- st_read("Arctic_Protected_areas_2017/CAFF_Protected_Areas_20_01_2017_nplae
 PAbuf <- st_buffer(PA,0)
 
 # bounding box for entire Arctic
-bb <- st_sfc(st_multipoint(matrix(c(-180:180,rep(60,361)),ncol=2)),
-             crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs ") %>%
-  st_sf() %>% 
-  st_transform(st_crs(flickramap)) %>% 
-  st_convex_hull()
+# bb <- st_sfc(st_multipoint(matrix(c(-180:180,rep(60,361)),ncol=2)),
+#              crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs ") %>%
+#   st_sf() %>% 
+#   st_transform(st_crs(flickramap)) %>% 
+#   st_convex_hull()
+
+bb <- st_read("flickr_AMAP60N_dissolve.shp")
 
 ggplot(bb)+
   geom_sf()
@@ -47,11 +50,14 @@ ggplot(bb)+
 #   st_simplify(preserveTopology = TRUE,10000) #TODO:when doing for real, comment out this line!
 
 # for natural earth, SJM seems to be lumped in woth NOR
-countries <- ne_countries(scale="large",returnclass = "sf")  %>% 
-  filter(adm0_a3 %in% c("CAN","USA","ISL","NOR","FRO","FIN","GRL","SJM","SWE","RUS")) %>% 
+countries <- ne_states(returnclass = "sf")  %>% 
+  filter(adm0_a3 %in% c("CAN","USA","ISL","NOR","FRO","FIN","GRL","SWE","RUS")) %>% 
   st_transform(st_crs(flickramap)) %>% 
-  st_intersection(bb) 
-
+  lwgeom::st_make_valid() %>%
+  st_intersection(bb) %>% 
+  mutate(adm0_a3 = replace(adm0_a3, name=="Svalbard", "SJM")) %>% 
+  group_by(adm0_a3) %>% summarise()
+ 
 ggplot(countries)+
   geom_sf(aes(fill=adm0_a3))
 
@@ -119,14 +125,28 @@ ggplot(urban_areas)+
 
 We have to create a hexagonal "raster" grid (not an actual raster)
 
-```{r hex grid}
-cell_diameter <- 10000 #TODO: when doing for real, make this smaller
+```{r hex grid, cache=T}
+cell_diameter_footprint <- 5000 #for footprint analysis
+cell_diameter <- 10000 #we use a bigger resolution for the models
 
 # switch to sp for the spsample function
 ext <- as(st_buffer(bb,cell_diameter), "Spatial")
 projection(ext) <- sf::st_crs(flickramap)$proj4string
 
-# generate hexagon grid
+# generate hexagon grid for footprints
+grid_footprint <- spsample(ext,
+                 type = "hexagonal",
+                 cellsize = cell_diameter_footprint,
+                 offset = c(0.5, 0.5)) %>% 
+  HexPoints2SpatialPolygons(dx = cell_diameter) %>% 
+  st_as_sf() %>% 
+  st_intersection(bb) %>% 
+  rowwise() %>% 
+  mutate(Latitude = st_coordinates(st_centroid(geometry))[2],
+         Longitude = st_coordinates(st_centroid(geometry))[1]) %>% 
+  st_as_sf(crs=st_crs(bb))
+
+# generate hexagon grid for models
 grid <- spsample(ext,
                  type = "hexagonal",
                  cellsize = cell_diameter,
@@ -139,13 +159,13 @@ grid <- spsample(ext,
          Longitude = st_coordinates(st_centroid(geometry))[1]) %>% 
   st_as_sf(crs=st_crs(bb))
 
-# ggplot(grid)+
-#   geom_sf()
+ #ggplot(grid)+
+   #geom_sf()
 ```
 
 Then, let's see which countries overlap which grid cell and if there is overlap with protected areas. If there is >20% overlap with PA then we consider that cell as a PA, we justify this because of the halo effect of PAs, people stay just outside PAs where there are accomodations.
 
-```{r custom functions}
+```{r custom functions, cache=T}
 
 # create a function to measure proportion of elements of sf1 are covered by sf2
 prop_overlap <- function(sf1,sf2){
@@ -191,33 +211,42 @@ length_overlap <- function(sf1,sf2){
 }
 ```
 
-
-```{r overlaps,message=FALSE}
+```{r overlaps,message=FALSE, dependson=c("packages and data", "custom functions", "hex grid"), cache=T}
 # protected areas
 grid$propPA <- prop_overlap(grid,PAbuf)
 grid$PA <- grid$propPA>0.2
+```
 
+```{r overlaps1, message=FALSE, dependson=c("overlaps"), cache=T}
 # country
-grid$country <- most_overlap(grid,countries,"sovereignt","Ocean")
+grid$country <- most_overlap(grid,countries,"adm0_a3","Ocean")
+```
 
+```{r overlaps2, message=FALSE, dependson=c("overlaps1"), cache=T}
 # roads
 grid$roadlength <- length_overlap(grid,roads)
 grid$dist2road <- st_distance(grid,st_combine(roads))
+```
 
+```{r overlaps3, message=FALSE, dependson=c("overlaps2"), cache=T}
 # airports
 grid$airports <- lengths(st_intersects(grid,airports))
 grid$dist2airports <- st_distance(grid,st_combine(airports))
+```
 
+```{r overlaps4, message=FALSE, dependson=c("overlaps3"), cache=T}
 # ports
 grid$ports <- lengths(st_intersects(grid,ports))
 grid$dist2ports <- st_distance(grid,st_combine(ports))
+```
 
-
+```{r overlaps5, message=FALSE, dependson=c("overlaps4"), cache=T}
 # populated places
 grid$populated_places <- lengths(st_intersects(grid,populated_places))
 grid$dist2populated_places <- st_distance(grid,st_combine(populated_places))
+```
 
-
+```{r overlaps6, message=FALSE, dependson=c("overlaps5"), cache=T}
 # urban area
 grid$urban_areas <- prop_overlap(grid,urban_areas)
 grid$dist2urban_areas <- st_distance(grid,st_combine(urban_areas))
@@ -227,14 +256,20 @@ head(grid)
 
 We also need to calculate the number of Flickr photos per year and correct it based on total Flickr usage over the years
 
-```{r by year}
-#  grid by year
-gridYear <- sapply(split(flickramap, flickramap$year),
+```{r by year, cache=T, dependson="overlaps6"}
+#add yearseason to flickramap
+
+flickramap$season <- "summer"
+flickramap$season[flickramap$month %in% c("01", "02", "03", "04", "11", "12")] <- "winter"
+flickramap <- flickramap %>% mutate(yearseason = paste(year, season, sep="_"))
+
+#  grid by yearseason
+gridYear <- sapply(split(flickramap, flickramap$yearseason),
                    function(x) lengths(st_intersects(grid,x))) %>% 
   cbind(grid,.) %>% 
   gather(key=year,value=photoCount,starts_with("X")) %>% 
-  mutate(year=as.numeric(substr(year,2,5)))
-
+  mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
+         season=strsplit(yearseason, "_")[[1]][2])
 
 byYear <- gridYear %>%
   data.frame() %>% 
@@ -252,11 +287,10 @@ byYear <- byYear %>%
   filter(variable!="correctionFact")
 ```
 
-
 Now that we have all our basic data ready to go, let's vizualize!
 
 First, lets see if there is a change in the number of users over time?
-```{r users}
+```{r users, cache=T}
 plotData <- byYear
 #plot showing all, arctic, and % traffic
 unique(plotData$variable)
@@ -271,7 +305,7 @@ Both the total number of photos on Flickr and in the Arctic increase over time, 
 
 Are these increasing numbers of tourists always visiting the same places, or are they exploring new grounds?
 
-```{r footprint}
+```{r footprint, cache=T}
 # spatial footprint expanded?
 plotData <- filter(gridYear,photoCount>0) %>% 
   left_join(correct,by="year") %>% 
@@ -280,29 +314,29 @@ plotData <- filter(gridYear,photoCount>0) %>%
 ggplot(plotData)+
   geom_histogram(aes(x=correctedPhotoCount))+
   scale_y_log10() +
-  facet_wrap(vars(year)) 
+  facet_wrap(vars(year, season), ncol=2) 
 ```
 
-```{r footprint2}
+```{r footprint2, cache=T}
 # or
 plotData <- gridYear %>% 
-  group_by(year) %>% 
+  group_by(yearseason) %>% 
   summarise(footprint=mean(photoCount>0)) %>% 
   mutate(type="Overall Flickr Footprint")
 
-
 equaln_sample_flickr <- flickramap %>% 
-  group_by(year) %>% 
+  group_by(yearseason) %>% 
   sample_n(as.numeric(table(flickramap$year)[1]))
 
-gridYear_equaln <- sapply(split(equaln_sample_flickr, equaln_sample_flickr$year),
+gridYear_equaln <- sapply(split(equaln_sample_flickr, equaln_sample_flickr$yearseason),
                           function(x) lengths(st_intersects(grid,x))) %>% 
   cbind(grid,.) %>% 
-  gather(key=year,value=photoCount,starts_with("X")) %>% 
-  mutate(year=as.numeric(substr(year,2,5)))
+  gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
+  mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
+         season=strsplit(yearseason, "_")[[1]][2])
 
 plotData_equaln <- gridYear_equaln %>% 
-  group_by(year) %>% 
+  group_by(yearseason) %>% 
   summarise(footprint=mean(photoCount>0) )%>% 
   mutate(type="With Equal N")
 
@@ -315,17 +349,18 @@ trafficn_sample_flickr <- flickramap %>%
   unnest(Sample) %>% 
   st_as_sf(crs = st_crs(flickramap))
 
-table(trafficn_sample_flickr$year)
-table(flickramap$year)
+table(trafficn_sample_flickr$yearseason)
+table(flickramap$yearseason)
 
-gridYear_trafficn <- sapply(split(trafficn_sample_flickr, trafficn_sample_flickr$year),
+gridYear_trafficn <- sapply(split(trafficn_sample_flickr, trafficn_sample_flickr$yearseason),
                           function(x) lengths(st_intersects(grid,x))) %>% 
   cbind(grid,.) %>% 
-  gather(key=year,value=photoCount,starts_with("X")) %>% 
-  mutate(year=as.numeric(substr(year,2,5)))
+  gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
+  mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
+         season=strsplit(yearseason, "_")[[1]][2])
 
 plotData_trafficn <- gridYear_trafficn %>% 
-  group_by(year) %>% 
+  group_by(yearseason) %>% 
   summarise(footprint=mean(photoCount>0)) %>% 
   mutate(type="With Increased Arctic Traffic")
 
@@ -335,10 +370,11 @@ plotDataAll$type <- ordered(plotDataAll$type,levels = unique(plotDataAll$type)[c
 
 ggplot(plotDataAll)+
   geom_area(aes(x=year,y=footprint,fill=type),position = "identity")+
-  scale_fill_manual(values=c("#1f78b4","#b2df8a","#a6cee3"))
+  scale_fill_manual(values=c("#1f78b4","#b2df8a","#a6cee3"))+
+  facet_wrap(vars(season))
 ```
 
-```{r footprint3}
+```{r footprint3, cache=T}
 # or
 plotData <- gridYear %>% 
   group_by(year,country) %>% 
@@ -348,15 +384,53 @@ ggplot(plotData)+
   geom_line(aes(x=year,y=footprint,color=country))
 ```
 
-Let's see if we can see what is driving these changes
+Let's see if we can see what is driving these changes. First lets model whether people visit protected areas more than expected
 
-```{r GAM}
-save(gridYear,file = paste0("gridYear_",cell_diameter,"_m"))
+```{r GAM, cache=T, dependson="by year"}
+save(gridYear,file = paste0("gridYear_",cell_diameter,"_m.Rdata"))
+
 gridYearmod <- gridYear %>% 
   filter(country!="Russia") %>% 
   mutate(photoCountlog10=log10(photoCount+1))
 
+#set norway as the reference level
+gridYearmod <- within(gridYearmod, country <- relevel(country, ref = "Norway"))
+#dropped year, dropped populatedplaces, dist2popplaces, urbanareas
 g <- gam(photoCountlog10 ~ s(Latitude)+
+           s(Longitude)+
+           country+
+           propPA+
+           season+
+           PA+
+           roadlength+
+           dist2road+
+           airports+
+           dist2airports+
+           ports+
+           dist2ports+
+           dist2urban_areas,
+         data = gridYearmod, method = "REML")
+gam.check(g)
+summary(g)
+```
+
+Now lets see if people use different types of access in different seasons.
+
+```{r GAM_seasonal, cache=T, dependson="by year"}
+
+gridYearsummermod <- gridYear %>% 
+  filter(country!="Russia") %>% 
+  filter(season=="summer") %>% 
+  mutate(photoCountlog10=log10(photoCount+1))
+
+gridYearwintermod <- gridYear %>% 
+  filter(country!="Russia") %>% 
+  filter(season=="winter") %>% 
+  mutate(photoCountlog10=log10(photoCount+1))
+
+#Summer
+gridYearsummermod <- within(gridYearsummermod, country <- relevel(country, ref = "Norway"))
+gs <- gam(photoCountlog10 ~ s(Latitude)+
            s(Longitude)+
            year+
            country+
@@ -372,9 +446,30 @@ g <- gam(photoCountlog10 ~ s(Latitude)+
            dist2populated_places+
            urban_areas+
            dist2urban_areas,
-         data = gridYearmod, method = "REML")
-gam.check(g)
-summary(g)
+         data = gridYearsummermod, method = "REML")
+gam.check(gs)
+summary(gs)
+AIC(gs)
+
+#Winter
+gridYearwintermod <- within(gridYearwintermod, country <- relevel(country, ref = "Norway"))
+gw <- gam(photoCountlog10 ~ s(Latitude)+
+           s(Longitude)+
+           year+
+           country+
+           propPA+
+           PA+
+           roadlength+
+           dist2road+
+           airports+
+           dist2airports+
+           ports+
+           dist2ports+
+           populated_places+
+           dist2populated_places+
+           urban_areas+
+           dist2urban_areas,
+         data = gridYearwintermod, method = "REML")
+gam.check(gw)
+summary(gw)
 ```
-
-

@@ -23,11 +23,20 @@ library(rgdal)
 #load bounding box shp
 boundary60N <- read_sf(paste0(wd2, "/Boundaries/Arctic_circle/60degreesN"), "60degreesN")
 #load flickr points as .shp
+#DATA N of 60N
 load(paste0(wd2, "/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy.Rdata"))
 #flickrshp
 #dropped photos pre 2004 and from 2018 or later
 #dropped rows missing urls
 #dropped testusers
+#DATA WITHIN AMAP BOUNDARIES
+#load(paste0(wd2, "/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap.Rdata"))
+#flickrshp <- flickramap
+#photos from amap region, 
+#regular and super users only, 
+#2004 to 2017
+#dropped rows with no google vision labels
+#includes photos in towns/cities
 
 ##########################
 ### Preliminary processing ----
@@ -56,6 +65,7 @@ rastFunPUD <- function(data, curres, currfolder, currphotos, currfile){
 rast1km <- rastFunPUD(flickrshp, 1000, "static_rasters_pud", "allseasons_pud", "1km")
 rast5km <- rastFunPUD(flickrshp, 5000, "static_rasters_pud", "allseasons_pud", "5km")
 rast10km <- rastFunPUD(flickrshp, 10000, "static_rasters_pud", "allseasons_pud", "10km")
+rast100km <- rastFunPUD(flickrshp, 100000, "static_rasters_pud", "allseasons_pud", "100km")
 
 #map photos from winter (Nov-Apr)
 flickrshp_winter <- flickrshp[flickrshp$month %in% c("11", "12", "01", "02", "03", "04"), ]
