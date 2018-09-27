@@ -324,7 +324,6 @@ plotData <- gridYear %>%
   summarise(footprint=mean(photoCount>0)) %>% 
   mutate(type="Overall Flickr Footprint")
 
-
 equaln_sample_flickr <- flickramap %>% 
   group_by(yearseason) %>% 
   sample_n(as.numeric(table(flickramap$year)[1]))
@@ -401,6 +400,7 @@ g <- gam(photoCountlog10 ~ s(Latitude)+
            s(Longitude)+
            country+
            propPA+
+           season+
            PA+
            roadlength+
            dist2road+
@@ -449,6 +449,7 @@ gs <- gam(photoCountlog10 ~ s(Latitude)+
          data = gridYearsummermod, method = "REML")
 gam.check(gs)
 summary(gs)
+AIC(gs)
 
 #Winter
 gridYearwintermod <- within(gridYearwintermod, country <- relevel(country, ref = "Norway"))
