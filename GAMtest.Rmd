@@ -259,46 +259,50 @@ flickramap <- flickramap %>% mutate(yearseason = paste(year, season, sep="_"))
 # 
 # #  grid by yearseason
 # gridYear <- sapply(split(flickramap, flickramap$yearseason),
-#                    function(x) lengths(st_intersects(grid,x))) %>% 
-#   cbind(grid,.) %>% 
-#   gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
+#                    function(x) lengths(st_intersects(grid_footprint,x))) %>%
+#   cbind(grid,.) %>%
+#   gather(key=yearseason,value=photoCount,starts_with("X")) %>%
 #   mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
 #          season=strsplit(yearseason, "_")[[1]][2])
 
 #photo-unit-day function
 PUD_grid <- function(flickrrecords, time, grid){
-  sapply(split(flickrrecords, time),
-         function(x){
+  df <- flickrrecords %>% split(time) %>% 
+    map( function(x){
            x$col.id <- as.integer(row.names(x))
            grid$row.id <- as.integer(row.names(grid))
-           PUD <- as.data.frame(st_intersects(grid,x)) %>% 
+           PUDdf <- as.data.frame(st_intersects(grid,x)) %>% 
              left_join(x,by="col.id") %>% 
              select(row.id,owner_date) %>% 
              unique() %>% 
              group_by(row.id) %>%
              summarize(PUD=n()) %>% 
              right_join(grid,by="row.id") %>% 
-             mutate(PUD=if_else(is.na(PUD), 0, as.numeric(PUD))) %>% 
-             select(PUD) %>% 
-             unlist() %>% 
-             as.numeric()
-           return(PUD)
+             mutate(PUD=if_else(is.na(PUD), 0, as.numeric(PUD))) %>%
+             as.tibble() %>% select(row.id, PUD, Latitude, Longitude)
+            return(PUDdf)
            })
+  df <- do.call(rbind, df) %>% as.tibble
+  return(df)
 }
+
+#The problem: This works, but it drops the time variable in the output 
+#the output consists of a long row.id, PUD, Latitude, Longitude
+
+
+     # gather(key=yearseason, value=PUD) %>% 
+      #mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
+     #    season=strsplit(yearseason, "_")[[1]][2])
+
 
 
 #how many pud in each grid cell in each year-season, for the models
-gridYearPUD_models <- PUD_grid(flickramap, flickramap$yearseason, grid_models) %>% 
-  cbind(grid,.) %>% 
-  gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
-  mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
-         season=strsplit(yearseason, "_")[[1]][2])
+gridYearPUD_models <- PUD_grid(flickramap, flickramap$yearseason, grid_models) 
 
 #how many photos in each grid cell in each year-season, for the footprint analysis
-gridYearPUD_footprint <- PUD_grid(flickramap, flickramap$yearseason, grid_footprint) %>% 
-  gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
-  mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
-         season=strsplit(yearseason, "_")[[1]][2])
+gridYearPUD_footprint <- PUD_grid(flickramap, flickramap$yearseason, grid_footprint) 
+
+
 
 byYear <- gridYearPUD %>%
   data.frame() %>% 
