@@ -285,9 +285,35 @@ PUD_grid <- function(flickrrecords, time, grid){
   df <- do.call(rbind, df) %>% as.tibble
   return(df)
 }
-
+g1 <- PUD_grid(flickramap, flickramap$yearseason, grid_models)
 #The problem: This works, but it drops the time variable in the output 
-#the output consists of a long row.id, PUD, Latitude, Longitude
+#the output consists of a long df row.id, PUD, Latitude, Longitude, which is what we want I think
+
+#This doesn't work, I don't know why
+ PUD_grid <- function(flickrrecords, timevar, grid){
+   flickrrecords %>% nest(!! -quos(timevar)) %>% 
+     map( function(x){
+            x$col.id <- as.integer(row.names(x))
+            grid$row.id <- as.integer(row.names(grid))
+            PUD <- as.data.frame(st_intersects(grid,x)) %>% 
+              left_join(x,by="col.id") %>% 
+              select(row.id,owner_date) %>% 
+              unique() %>% 
+              group_by(row.id) %>%
+              summarize(PUD=n()) %>% 
+              right_join(grid,by="row.id") %>% 
+              mutate(PUD=if_else(is.na(PUD), 0, as.numeric(PUD))) %>%
+              as.tibble()
+             # select(PUD) %>% 
+              # unlist() %>% 
+              # as.numeric()
+            return(PUD)
+            }) %>% unnest()
+}
+g2 <- PUD_grid(flickramap, flickramap$yearseason, grid_models)
+
+
+
 
 
      # gather(key=yearseason, value=PUD) %>% 
