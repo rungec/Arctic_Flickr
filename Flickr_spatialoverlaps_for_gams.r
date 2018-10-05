@@ -209,11 +209,6 @@ length_overlap <- function(sf1,sf2){
 ######################
 #Then, for the models, let's see which countries overlap which grid cell and if there is overlap with protected areas. If there is >20% overlap with PA then we consider that cell as a PA, we justify this because of the halo effect of PAs, people stay just outside PAs where there are accomodations.
 
-# 1 protected areas
-grid_models$propPA <- prop_overlap(grid_models,PAbuf)
-grid_models$PA <- grid_models$propPA>0.2
-save(grid_models, file = paste0("ArcticAMAP_griddedaccessibilitydata_",cell_diameter,"_m.Rdata")) #this step takes a lot of time, so lets save it just in case
-
 # 2 country
 grid_models$country <- most_overlap(grid_models,countries,"adm0_a3","Ocean")
 
@@ -237,6 +232,11 @@ grid_models$dist2populated_places <- st_distance(grid_models,st_combine(populate
 # 7 urban area
 grid_models$urban_areas <- prop_overlap(grid_models,urban_areas)
 grid_models$dist2urban_areas <- st_distance(grid_models,st_combine(urban_areas))
+save(grid_models, file = paste0("ArcticAMAP_griddedaccessibilitydata_",cell_diameter,"_m.Rdata")) #the next step takes a lot of time, so lets save it just in case
+
+# 1 protected areas
+grid_models$propPA <- prop_overlap(grid_models,PAbuf)
+grid_models$PA <- grid_models$propPA>0.2
 
 #check
 head(grid_models)
