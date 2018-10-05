@@ -13,11 +13,15 @@ require(mgcv)
 require(rnaturalearth)
 require(lwgeom)
 
+#wd <- "D:/Box Sync/Arctic/Data"
+#setwd(wd)
 # flickr data
-load("Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
+#load("Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
 
 # protected areas
 PA <- st_read("Arctic_Protected_areas_2017/CAFF_Protected_Areas_20_01_2017_nplaea.shp")
+#PA <- st_read("D:/Box Sync/Arctic/Data/Ecological/Arctic_Protected_areas_2017/CAFF_Protected_Areas_20_01_2017_nplaea.shp")
 # because PA has some invalid geometries (i.e. st_is_valid()) we need to buffer PA to fix these
 PAbuf <- st_buffer(PA,0)
 
@@ -28,7 +32,8 @@ PAbuf <- st_buffer(PA,0)
 #   st_transform(st_crs(flickramap)) %>% 
 #   st_convex_hull()
 
-bb <- st_read("flickr_AMAP60N_dissolve.shp")
+#bb <- st_read("flickr_AMAP60N_dissolve.shp")
+bb <- st_read("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/flickr_AMAP60N_dissolve.shp")
 
 ggplot(bb)+
   geom_sf()
@@ -62,13 +67,12 @@ ggplot(countries)+
   geom_sf(aes(fill=adm0_a3))
 
 # flickr
-AllFlickr <- read.csv("Flickr_global_nphotostaken_byhr_2000to2018.csv") %>% 
+AllFlickr <- read.csv("D:/Box Sync/Arctic/Data/Flickr/global_flickr/Flickr_global_nphotostaken_byhr_2000to2018.csv") %>% 
+#AllFlickr <- read.csv("Flickr_global_nphotostaken_byhr_2000to2018.csv") %>% 
   mutate(year=year(datetime)) %>% 
   filter(year>=min(flickramap$year)) %>% 
   group_by(year) %>% 
   summarize("Total Flickr Photos" = sum(total))
-
-
 
 # naturalearth layers, change ne_load() with ne_download() if the data is not downloaded yet
 roads <- ne_load(type="roads",
@@ -127,44 +131,32 @@ We have to create a hexagonal "raster" grid (not an actual raster)
 
 ```{r hex grid, cache=T}
 
-cell_diameter_footprint <- 5000 #for footprint analysis
-cell_diameter <- 10000 #we use a bigger resolution for the models
+makegridfun <- function(currdiameter){
+    # switch to sp for the spsample function
+    ext <- as(st_buffer(bb, currdiameter), "Spatial")
+    projection(ext) <- sf::st_crs(flickramap)$proj4string
+    
+    # generate hexagon grid for footprints
+    currgrid <- spsample(ext,
+                     type = "hexagonal",
+                     cellsize = currdiameter,
+                     offset = c(0.5, 0.5)) %>% 
+      HexPoints2SpatialPolygons(dx = currdiameter) %>% 
+      st_as_sf() %>% 
+      st_intersection(bb) %>% 
+      rowwise() %>% 
+      mutate(Latitude = st_coordinates(st_centroid(geometry))[2],
+             Longitude = st_coordinates(st_centroid(geometry))[1]) %>% 
+      st_as_sf(crs=st_crs(bb))
+  return(currgrid)
+}
 
-# switch to sp for the spsample function
-ext <- as(st_buffer(bb,cell_diameter), "Spatial")
-projection(ext) <- sf::st_crs(flickramap)$proj4string
+grid_models <- makegridfun(100000) #we use a bigger resolution for the models
+grid_footprint <- makegridfun(50000) #we use a bigger resolution for the models
 
-# generate hexagon grid for footprints
-grid_footprint <- spsample(ext,
-                 type = "hexagonal",
-                 cellsize = cell_diameter_footprint,
-                 offset = c(0.5, 0.5)) %>% 
-  HexPoints2SpatialPolygons(dx = cell_diameter) %>% 
-  st_as_sf() %>% 
-  st_intersection(bb) %>% 
-  rowwise() %>% 
-  mutate(Latitude = st_coordinates(st_centroid(geometry))[2],
-         Longitude = st_coordinates(st_centroid(geometry))[1]) %>% 
-  st_as_sf(crs=st_crs(bb))
-
-# generate hexagon grid for models
-grid <- spsample(ext,
-                 type = "hexagonal",
-                 cellsize = cell_diameter,
-                 offset = c(0.5, 0.5)) %>% 
-  HexPoints2SpatialPolygons(dx = cell_diameter) %>% 
-  st_as_sf() %>% 
-  st_intersection(bb) %>% 
-  rowwise() %>% 
-  mutate(Latitude = st_coordinates(st_centroid(geometry))[2],
-         Longitude = st_coordinates(st_centroid(geometry))[1]) %>% 
-  st_as_sf(crs=st_crs(bb))
-
- #ggplot(grid)+
-   #geom_sf()
 ```
 
-Then, let's see which countries overlap which grid cell and if there is overlap with protected areas. If there is >20% overlap with PA then we consider that cell as a PA, we justify this because of the halo effect of PAs, people stay just outside PAs where there are accomodations.
+Then, for the models, let's see which countries overlap which grid cell and if there is overlap with protected areas. If there is >20% overlap with PA then we consider that cell as a PA, we justify this because of the halo effect of PAs, people stay just outside PAs where there are accomodations.
 
 ```{r custom functions, cache=T}
 
@@ -214,52 +206,53 @@ length_overlap <- function(sf1,sf2){
 
 ```{r overlaps,message=FALSE, dependson=c("packages and data", "custom functions", "hex grid"), cache=T}
 # protected areas
-grid$propPA <- prop_overlap(grid,PAbuf)
-grid$PA <- grid$propPA>0.2
+grid_models$propPA <- prop_overlap(grid_models,PAbuf)
+grid_models$PA <- grid_models$propPA>0.2
 ```
 
 ```{r overlaps1, message=FALSE, dependson=c("overlaps"), cache=T}
 # country
-grid$country <- most_overlap(grid,countries,"adm0_a3","Ocean")
+grid_models$country <- most_overlap(grid_models,countries,"adm0_a3","Ocean")
 ```
 
 ```{r overlaps2, message=FALSE, dependson=c("overlaps1"), cache=T}
 # roads
-grid$roadlength <- length_overlap(grid,roads)
-grid$dist2road <- st_distance(grid,st_combine(roads))
+grid_models$roadlength <- length_overlap(grid_models,roads)
+grid_models$dist2road <- st_distance(grid_models,st_combine(roads))
 ```
 
 ```{r overlaps3, message=FALSE, dependson=c("overlaps2"), cache=T}
 # airports
-grid$airports <- lengths(st_intersects(grid,airports))
-grid$dist2airports <- st_distance(grid,st_combine(airports))
+grid_models$airports <- lengths(st_intersects(grid_models,airports))
+grid_models$dist2airports <- st_distance(grid_models,st_combine(airports))
 ```
 
 ```{r overlaps4, message=FALSE, dependson=c("overlaps3"), cache=T}
 # ports
-grid$ports <- lengths(st_intersects(grid,ports))
-grid$dist2ports <- st_distance(grid,st_combine(ports))
+grid_models$ports <- lengths(st_intersects(grid_models,ports))
+grid_models$dist2ports <- st_distance(grid_models,st_combine(ports))
 ```
 
 ```{r overlaps5, message=FALSE, dependson=c("overlaps4"), cache=T}
 # populated places
-grid$populated_places <- lengths(st_intersects(grid,populated_places))
-grid$dist2populated_places <- st_distance(grid,st_combine(populated_places))
+grid_models$populated_places <- lengths(st_intersects(grid_models,populated_places))
+grid_models$dist2populated_places <- st_distance(grid_models,st_combine(populated_places))
 ```
 
 ```{r overlaps6, message=FALSE, dependson=c("overlaps5"), cache=T}
 # urban area
-grid$urban_areas <- prop_overlap(grid,urban_areas)
-grid$dist2urban_areas <- st_distance(grid,st_combine(urban_areas))
+grid_models$urban_areas <- prop_overlap(grid_models,urban_areas)
+grid_models$dist2urban_areas <- st_distance(grid_models,st_combine(urban_areas))
 
-head(grid)
+head(grid_models)
+save(grid_models, file = paste0("ArcticAMAP_griddedaccessibilitydata_",cell_diameter,"_m.Rdata"))
 ```
 
 We also need to calculate the number of Flickr photos per year and correct it based on total Flickr usage over the years
 
 ```{r by year, cache=T, dependson="overlaps6"}
-#add yearseason to flickramap
 
+#add yearseason to flickramap
 flickramap$season <- "summer"
 flickramap$season[flickramap$month %in% c("01", "02", "03", "04", "11", "12")] <- "winter"
 flickramap <- flickramap %>% mutate(yearseason = paste(year, season, sep="_"))
@@ -273,19 +266,19 @@ flickramap <- flickramap %>% mutate(yearseason = paste(year, season, sep="_"))
 #          season=strsplit(yearseason, "_")[[1]][2])
 
 #photo-unit-day function
-PUD_grid <- function(flickrrecords,time,grid){
-  sapply(split(flickrrecords,time),
+PUD_grid <- function(flickrrecords, time, grid){
+  sapply(split(flickrrecords, time),
          function(x){
            x$col.id <- as.integer(row.names(x))
            grid$row.id <- as.integer(row.names(grid))
            PUD <- as.data.frame(st_intersects(grid,x)) %>% 
              left_join(x,by="col.id") %>% 
-             select(row.id,owner,datetkn) %>% 
+             select(row.id,owner_date) %>% 
              unique() %>% 
              group_by(row.id) %>%
              summarize(PUD=n()) %>% 
-             right_join(grid,by="row.id",) %>% 
-             mutate(PUD=if_else(is.na(PUD),0,as.numeric(PUD))) %>% 
+             right_join(grid,by="row.id") %>% 
+             mutate(PUD=if_else(is.na(PUD), 0, as.numeric(PUD))) %>% 
              select(PUD) %>% 
              unlist() %>% 
              as.numeric()
@@ -294,8 +287,15 @@ PUD_grid <- function(flickrrecords,time,grid){
 }
 
 
-gridYearPUD <- PUD_grid(flickramap,flickramap$yearseason,grid) %>% 
+#how many pud in each grid cell in each year-season, for the models
+gridYearPUD_models <- PUD_grid(flickramap, flickramap$yearseason, grid_models) %>% 
   cbind(grid,.) %>% 
+  gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
+  mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
+         season=strsplit(yearseason, "_")[[1]][2])
+
+#how many photos in each grid cell in each year-season, for the footprint analysis
+gridYearPUD_footprint <- PUD_grid(flickramap, flickramap$yearseason, grid_footprint) %>% 
   gather(key=yearseason,value=photoCount,starts_with("X")) %>% 
   mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
          season=strsplit(yearseason, "_")[[1]][2])
@@ -314,6 +314,10 @@ correct <- byYear %>%
   select(-variable)
 byYear <- byYear %>% 
   filter(variable!="correctionFact")
+
+save(gridYear,file = paste0("gridYear_",cell_diameter,"_m.Rdata"))
+save(gridYearPUD,file = paste0("gridYearPUD_",cell_diameter,"_m.Rdata"))
+
 ```
 
 Now that we have all our basic data ready to go, let's vizualize!
@@ -336,7 +340,7 @@ Are these increasing numbers of tourists always visiting the same places, or are
 
 ```{r footprint, cache=T}
 # spatial footprint expanded?
-plotData <- filter(gridYear,PUD>0) %>% 
+plotData <- filter(gridYear, PUD>0) %>% 
   left_join(correct,by="yearseason") %>% 
   mutate(correctedPUD=photoCount*value)
 
@@ -422,7 +426,6 @@ ggplot(plotData)+
 Let's see if we can see what is driving these changes. First lets model whether people visit protected areas more than expected
 
 ```{r GAM, cache=T, dependson="by year"}
-save(gridYear,file = paste0("gridYear_",cell_diameter,"_m.Rdata"))
 
 gridYearmod <- gridYear %>% 
   filter(country!="Russia") %>% 
