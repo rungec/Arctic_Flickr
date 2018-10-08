@@ -15,11 +15,11 @@ require(lwgeom)
 #wd <- "D:/Box Sync/Arctic/Data"
 #setwd(wd)
 # flickr data
-#load("Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
-load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
+load("Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
+#load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
 
 # protected areas
-PA <- st_read("Arctic_Protected_areas_2017/CAFF_Protected_Areas_20_01_2017_nplaea.shp")
+PA <- st_read("Arctic_Protected_areas_2017/WDPA_plusCAFF_PAs_Amap60N_dissolve.shp")
 #PA <- st_read("D:/Box Sync/Arctic/Data/Ecological/Arctic_Protected_areas_2017/CAFF_Protected_Areas_20_01_2017_nplaea.shp")
 # because PA has some invalid geometries (i.e. st_is_valid()) we need to buffer PA to fix these
 PAbuf <- st_buffer(PA,0)
