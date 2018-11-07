@@ -34,8 +34,8 @@ PAbuf <- st_buffer(PA,0)
 bb <- st_read("flickr_AMAP60N_dissolve.shp")
 #bb <- st_read("D:/Box Sync/Arctic/Data/Boundaries/Arctic_circle/AMAP/flickr_AMAP60N_dissolve.shp")
 
-ggplot(bb)+
-  geom_sf()
+#ggplot(bb)+
+  #geom_sf()
 
 # country
 
@@ -81,8 +81,8 @@ roads <- ne_load(type="roads",
   st_transform(st_crs(flickramap)) %>% 
   st_intersection(bb)
 
-ggplot(roads)+
-  geom_sf()
+#ggplot(roads)+
+ # geom_sf()
 
 airports <- ne_load(type="airports",
                      scale="large",
@@ -91,8 +91,8 @@ airports <- ne_load(type="airports",
   st_transform(st_crs(flickramap)) %>% 
   st_intersection(bb)
 
-ggplot(airports)+
-  geom_sf()
+#ggplot(airports)+
+#  geom_sf()
 
 ports <- ne_load(type="ports",
                      scale="large",
@@ -101,8 +101,8 @@ ports <- ne_load(type="ports",
   st_transform(st_crs(flickramap)) %>% 
   st_intersection(bb)
 
-ggplot(ports)+
-  geom_sf()
+#ggplot(ports)+
+ # geom_sf()
 
 populated_places <- ne_load(type="populated_places",
                      scale="large",
@@ -111,8 +111,8 @@ populated_places <- ne_load(type="populated_places",
   st_transform(st_crs(flickramap)) %>% 
   st_intersection(bb)
 
-ggplot(populated_places)+
-  geom_sf()
+#ggplot(populated_places)+
+ # geom_sf()
 
 urban_areas <- ne_load(type="urban_areas",
                      scale="large",
@@ -121,8 +121,8 @@ urban_areas <- ne_load(type="urban_areas",
   st_transform(st_crs(flickramap)) %>% 
   st_intersection(bb)
 
-ggplot(urban_areas)+
-  geom_sf()
+#ggplot(urban_areas)+
+ # geom_sf()
 
 
 ######################
