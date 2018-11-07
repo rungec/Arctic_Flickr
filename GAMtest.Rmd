@@ -20,6 +20,16 @@ load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/input/ArcticAMAP_
 
 #load grid for footprint analysis
 load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/input/ArcticAMAP_templatehexgrid_5000_m.Rdata")
+
+# global flickr number of photos by year
+AllFlickr <- read.csv("D:/Box Sync/Arctic/Data/Flickr/global_flickr/Flickr_global_nphotostaken_byhr_2000to2018.csv") %>% 
+  mutate(year=year(datetime), month=month(datetime)) %>% 
+  filter(year>=min(flickramap$year)) %>% 
+  mutate(season=if_else(month %in% c(1, 2,3,4, 11, 12), "winter", "summer")) %>%
+  mutate(yearseason = paste(year, season, sep="_")) %>%
+  group_by(yearseason) %>% 
+  summarize("Total Flickr Photos" = sum(total))
+
 ```
 
 We need to calculate the number of Flickr photos per year and correct it based on total Flickr usage over the years
@@ -31,14 +41,6 @@ flickramap$season <- "summer"
 flickramap$season[flickramap$month %in% c("01", "02", "03", "04", "11", "12")] <- "winter"
 flickramap <- flickramap %>% mutate(yearseason = paste(year, season, sep="_"))
 # 
-# #  grid by yearseason
-# gridYear <- sapply(split(flickramap, flickramap$yearseason),
-#                    function(x) lengths(st_intersects(grid_footprint,x))) %>%
-#   cbind(grid,.) %>%
-#   gather(key=yearseason,value=photoCount,starts_with("X")) %>%
-#   mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
-#          season=strsplit(yearseason, "_")[[1]][2])
-
 #photo-unit-day function
 PUD_grid <- function(flickrrecords, time, grid){
   df <- flickrrecords %>% split(time) %>% 
@@ -67,32 +69,30 @@ PUD_grid <- function(flickrrecords, time, grid){
 }
 #the output consists of a long df row.id, PUD, Latitude, Longitude, timevar (1 row for each cell-time combination)
 
+#function to adjust by global flickr trends
+adj_fun <- function(gridYearPUD){
+          byYear <- gridYearPUD %>%
+                      data.frame() %>% 
+                      group_by(yearseason) %>% 
+                      summarise("Artic PUD"=sum(PUD)) %>% 
+                      left_join(AllFlickr,by="yearseason") %>% 
+                      mutate("Percent Traffic"=.$"Artic PUD"/.$"Total Flickr Photos",
+                             correctionFact=mean(.$"Total Flickr Photos")/.$"Total Flickr Photos") %>%
+              gather(key="variable",value="value",-yearseason)
+                     return(byYear)
+}
+
+a <- adj_fun(df)
 
 #how many pud in each grid cell in each year-season, for the models
 gridYearPUD_models <- PUD_grid(flickramap, flickramap$yearseason, grid_models) 
+gridYearPUD_models <- adj_fun(gridYearPUD_models)
+save(gridYearPUD_models,file = paste0("gridYearPUD_models",cell_diameter,"_m.Rdata"))
 
 #how many photos in each grid cell in each year-season, for the footprint analysis
 gridYearPUD_footprint <- PUD_grid(flickramap, flickramap$yearseason, grid_footprint) 
-
-
-
-byYear <- gridYearPUD %>%
-  data.frame() %>% 
-  group_by(yearseason) %>% 
-  summarise("Artic Photos"=sum(photoCount)) %>% 
-  left_join(AllFlickr,by="yearseason") %>% 
-  mutate("Percent Traffic"=.$"Artic Photos"/.$"Total Flickr Photos",
-         correctionFact=mean(.$"Total Flickr Photos")/.$"Total Flickr Photos") %>% 
-  gather(key="variable",value="value",-yearseason)
-
-correct <- byYear %>% 
-  filter(variable=="correctionFact") %>% 
-  select(-variable)
-byYear <- byYear %>% 
-  filter(variable!="correctionFact")
-
-save(gridYear,file = paste0("gridYear_",cell_diameter,"_m.Rdata"))
-save(gridYearPUD,file = paste0("gridYearPUD_",cell_diameter,"_m.Rdata"))
+gridYearPUD_footprint <- adj_fun(gridYearPUD_footprint)
+save(gridYearPUD_footprint,file = paste0("gridYearPUD_footprint",cell_diameter,"_m.Rdata"))
 
 ```
 
@@ -100,11 +100,11 @@ Now that we have all our basic data ready to go, let's vizualize!
 
 First, lets see if there is a change in the number of users over time?
 ```{r users, cache=T}
-plotData <- byYear
+plotData <- a
 #plot showing all, arctic, and % traffic
 unique(plotData$variable)
 #reorder
-plotData$variable <- ordered(plotData$variable,levels=c("Total Flickr Photos","Artic Photos","Percent Traffic"))
+plotData$variable <- ordered(plotData$variable,levels=c("Total Flickr Photos","Artic PUD","Percent Traffic"))
 ggplot(plotData) + 
   geom_line(aes(x=yearseason,y=value)) +
   facet_grid(vars(variable),scales="free_y")
