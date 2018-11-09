@@ -13,20 +13,24 @@ require(mgcv)
 #setwd(wd)
 # flickr data
 #load("Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
-load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
+#load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
+load("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
 
 #load data on accessibility and PA that has been gridded to 10000m (script Flickr_spatialoverlaps_for_gams.r).
-load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/input/ArcticAMAP_griddedaccessibilitydata_10000_m.Rdata")
+#load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/input/ArcticAMAP_griddedaccessibilitydata_10000_m.Rdata")
+load("flickr/ArcticAMAP_griddedaccessibilitydata_10000_m.Rdata")
 
 #load grid for footprint analysis
-load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/input/ArcticAMAP_templatehexgrid_5000_m.Rdata")
+#load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/input/ArcticAMAP_templatehexgrid_5000_m.Rdata")
+load("flickr/ArcticAMAP_templatehexgrid_5000_m.Rdata")
 
 # global flickr number of photos by year
-AllFlickr <- read.csv("D:/Box Sync/Arctic/Data/Flickr/global_flickr/Flickr_global_nphotostaken_byhr_2000to2018.csv") %>% 
-  mutate(year=year(datetime), month=month(datetime)) %>% 
+#AllFlickr <- read.csv("D:/Box Sync/Arctic/Data/Flickr/global_flickr/Flickr_global_nphotostaken_byhr_2000to2018.csv") %>% 
+AllFlickr <- read.csv("flickr/Flickr_global_nphotostaken_byhr_2000to2018.csv") %>%   mutate(year=year(datetime), month=month(datetime)) %>% 
   filter(year>=min(flickramap$year)) %>% 
   mutate(season=if_else(month %in% c(1, 2,3,4, 11, 12), "winter", "summer")) %>%
-  mutate(yearseason = paste(year, season, sep="_")) %>%
+  mutate(year_new=if_else(month %in% c(11,12), year+1, year)) %>%
+  mutate(yearseason = paste(year_new, season, sep="_")) %>%
   group_by(yearseason) %>% 
   summarize("Total Flickr Photos" = sum(total))
 
@@ -34,40 +38,37 @@ AllFlickr <- read.csv("D:/Box Sync/Arctic/Data/Flickr/global_flickr/Flickr_globa
 
 We need to calculate the number of Flickr photos per year and correct it based on total Flickr usage over the years
 
-```{r by year, cache=T, dependson="overlaps6"}
+```{r by year, cache=T, dependson="packages and data"}
 
 #add yearseason to flickramap
 flickramap$season <- "summer"
 flickramap$season[flickramap$month %in% c("01", "02", "03", "04", "11", "12")] <- "winter"
-flickramap$year_old <- flickramap$year
-flickramap <- filter(month %in% c("11", "12")) %>%
-                      mutate(year=year_old +1 )
-flickramap <- flickramap %>% mutate(yearseason = paste(year, season, sep="_"))
+flickramap$year_old <- as.numeric(flickramap$year)
+flickramap <- flickramap %>% 
+        mutate(year=(if_else(month %in% c("11", "12"), year_old + 1, as.numeric(year)))) %>%
+        mutate(yearseason = paste(year, season, sep="_"))
 # 
 #photo-unit-day function
 PUD_grid <- function(flickrrecords, time, grid){
   df <- flickrrecords %>% split(time) %>% 
     map( function(x){
            x$col.id <- as.integer(1:nrow(x)) #each col.id represents a separate photo
-           grid$row.id <- as.integer(row.names(grid)) 
-           PUDdf <- as.data.frame(st_intersects(grid,x)) %>% 
-             left_join(x,by="col.id") %>% 
-             select(row.id,owner_date) %>% 
+           grid$row.id <- as.integer(row.names(grid)) #each row.id represents a grid cell
+           PUDdf <- as.data.frame(st_intersects(grid, x)) %>% 
+             left_join(x, by="col.id") %>% 
+             select(row.id, owner_date) %>% 
              unique() %>% 
              group_by(row.id) %>%
              summarize(PUD=n()) %>% 
-             right_join(grid,by="row.id") %>% 
+             right_join(grid, by="row.id") %>% 
              mutate(PUD=if_else(is.na(PUD), 0, as.numeric(PUD))) %>%
              as.tibble() %>% select(row.id, PUD, Latitude, Longitude)
             return(PUDdf)
-           })
-  timevar <- names(df)
-  df <- do.call(rbind, df) %>% as.tibble
-  df$yearseason <- timevar
-  df <- df %>%       
+           }) %>% bind_rows(.id="yearseason") %>%       
         separate(yearseason, c("year", "season"), sep="_", remove=FALSE)
-  return(df)
-}
+  return (df)
+  }
+    
 #the output consists of a long df row.id, PUD, Latitude, Longitude, timevar (1 row for each cell-time combination)
 
 #function to adjust by global flickr trends
@@ -89,9 +90,11 @@ gridYearPUD_models <- PUD_grid(flickramap, flickramap$yearseason, grid_models)
 save(gridYearPUD_models,file = paste0("gridYearPUD_models",10000,"_m.Rdata"))
 byYear_models <- adj_fun(gridYearPUD_models)
 save(byYear_models,file = paste0("byYear_models",10000,"_m.Rdata"))
+rm(gridYearPUD_models)
 
 #how many photos in each grid cell in each year-season, for the footprint analysis
-gridYearPUD_footprint <- PUD_grid(flickramap, flickramap$yearseason, grid_footprint) 
+gridYearPUD_footprint <- PUD_grid(flickramap, flickramap$yearseason, grid_footprint) %>%
+                          filter(PUD > 0)
 save(gridYearPUD_footprint,file = paste0("gridYearPUD_footprint",5000,"_m.Rdata"))
 byYear_footprint <- adj_fun(gridYearPUD_footprint)
 save(byYear_footprint,file = paste0("byYear_footprint",5000,"_m.Rdata"))
@@ -100,7 +103,7 @@ save(byYear_footprint,file = paste0("byYear_footprint",5000,"_m.Rdata"))
 
 Now that we have all our basic data ready to go, let's vizualize!
 
-First, lets see if there is a change in the number of users over time?
+First, lets see if there is a change in the number of PUDs over time?
 ```{r users, cache=T}
 correct <- byYear_footprint %>% 
   filter(variable=="correctionFact") %>% 
@@ -108,13 +111,13 @@ correct <- byYear_footprint %>%
 byYear <- byYear_footprint %>% 
   filter(variable!="correctionFact")
 
-plotData <- byYear_footprint
+plotData <- byYear
 #plot showing all, arctic, and % traffic
 unique(plotData$variable)
 #reorder
 plotData$variable <- ordered(plotData$variable,levels=c("Total Flickr Photos","PUD","Percent Traffic"))
 ggplot(plotData) + 
-  geom_line(aes(x=year,y=value, group=season)) +
+  geom_line(aes(x=year,y=value, color=season)) +
   facet_grid(vars(variable),scales="free_y")
 ```
 
@@ -124,28 +127,23 @@ Are these increasing numbers of tourists always visiting the same places, or are
 
 ```{r footprint, cache=T}
 # spatial footprint expanded?
-correct <- byYear_footprint %>% 
-  filter(variable=="correctionFact") %>% 
-  select(-variable)
-byYear <- byYear_footprint %>% 
-  filter(variable!="correctionFact")
 
-#names(gridYearPUD_footprint)[2] <- "PUD"
-plotData <- filter(gridYearPUD_footprint, PUD>0) %>% 
+plotData2 <- filter(gridYearPUD_footprint, PUD>0) %>% 
   left_join(correct, by="yearseason") %>% 
-  mutate(correctedPUD=PUD*value)
+  mutate(correctedPUD = PUD*value)
 
-ggplot(plotData)+
+ggplot(plotData2)+
   geom_histogram(aes(x=correctedPUD))+
-  scale_y_log10() +
-  facet_wrap(vars(yearseason, season), ncol=2) 
+  scale_y_log10() + 
+  xlim(0,200) +
+  facet_wrap(vars(yearseason), ncol=4, strip.position="right")
 ```
 
 ```{r footprint2, cache=T}
 # or
 plotData <- gridYearPUD_footprint %>% 
   group_by(yearseason) %>% 
-  summarise(footprint=mean(photoCount>0)) %>% 
+  summarise(footprint=mean(PUD>0)) %>% 
   mutate(type="Overall Flickr Footprint")
 
 # this samples n records from each year in flickramap
@@ -156,19 +154,11 @@ equaln_sample_flickr <- flickramap %>%
   # sample_n(as.numeric(table(flickramap$year)[1])) #before
   sample_n(min(table(flickramap$yearseason)))
 
-
 # this recalculates PUD by yearseason by grid cell for equaln_sample_flickr
-gridYear_equaln <- PUD_grid(equaln_sample_flickr,equaln_sample_flickr$yearseason,grid) %>% 
-  cbind(grid,.) %>% 
-  gather(key=yearseason,value=PUD,starts_with("X")) %>% 
-  mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
-         season=strsplit(yearseason, "_")[[1]][2])
-
-plotData_equaln <- gridYear_equaln %>% 
+plotData_equaln <- PUD_grid(equaln_sample_flickr, equaln_sample_flickr$yearseason, grid_footprint) %>% 
   group_by(yearseason) %>% 
   summarise(footprint=mean(PUD>0) )%>% 
   mutate(type="With Equal N")
-
 
 trafficn_sample_flickr <- flickramap %>% 
   # mutate(year=as.numeric(year)) %>% 
@@ -182,14 +172,7 @@ trafficn_sample_flickr <- flickramap %>%
 table(trafficn_sample_flickr$yearseason)
 table(flickramap$yearseason)
 
-gridYear_trafficn <- sapply(split(trafficn_sample_flickr, trafficn_sample_flickr$yearseason),
-                          function(x) lengths(st_intersects(grid,x))) %>% 
-  cbind(grid,.) %>% 
-  gather(key=yearseason,value=PUD,starts_with("X")) %>% 
-  mutate(year=as.numeric(substr(strsplit(yearseason, "_")[[1]][1],2,5)),
-         season=strsplit(yearseason, "_")[[1]][2])
-
-plotData_trafficn <- gridYear_trafficn %>% 
+plotData_trafficn <- PUD_grid(trafficn_sample_flickr, trafficn_sample_flickr$yearseason, grid_footprint) %>% 
   group_by(yearseason) %>% 
   summarise(footprint=mean(PUD>0)) %>% 
   mutate(type="With Increased Arctic Traffic")
@@ -197,35 +180,41 @@ plotData_trafficn <- gridYear_trafficn %>%
 plotDataAll <- rbind(plotData,plotData_equaln,plotData_trafficn)
 
 plotDataAll$type <- ordered(plotDataAll$type,levels = unique(plotDataAll$type)[c(1,3,2)])
+plotDataAll <- separate(plotDataAll, yearseason, c("year", "season"), sep="_", remove=FALSE) %>%     mutate(year=as.numeric(year))
 
 ggplot(plotDataAll)+
-  geom_area(aes(x=yearseason,y=footprint,fill=type),position = "identity")+
+  geom_area(aes(x=year, y=footprint, fill=type),position = "identity")+
   scale_fill_manual(values=c("#1f78b4","#b2df8a","#a6cee3"))+
   facet_wrap(vars(season))
 ```
 
 ```{r footprint3, cache=T}
 # or
-plotData <- gridYearPUD_footprint %>% 
-  group_by(year,country) %>% 
-  summarise(footprint=mean(photoCount>0))
+plotData3 <- gridYearPUD_footprint %>% 
+  group_by(year, season, country) %>% 
+  summarise(footprint=mean(PUD>0)) %>% 
+  mutate(year=as.numeric(year))
 
-ggplot(plotData)+
+ggplot(plotData3)+
   geom_line(aes(x=year,y=footprint,color=country))
 ```
 
 Let's see if we can see what is driving these changes. First lets model whether people visit protected areas more than expected
 
-```{r GAM, cache=T, dependson="by year"}
+```{r GAM, cache=T, dependson="by year", eval=FALSE}
 
-gridYearmod <- gridYear %>% 
+load(paste0("gridYearPUD_models",10000,"_m.Rdata"))
+
+gridYearmod <- gridYearPUD_models %>% 
   filter(country!="Russia") %>% 
-  mutate(photoCountlog10=log10(photoCount+1))
+  group_by(year) %>%
+  summarise(PUD=sum(PUD)) %>%
+  mutate(PUDlog10=log10(PUD+1))
 
 #set norway as the reference level
 gridYearmod <- within(gridYearmod, country <- relevel(country, ref = "Norway"))
 #dropped year, dropped populatedplaces, dist2popplaces, urbanareas
-g <- gam(photoCountlog10 ~ s(Latitude)+
+g <- gam(PUDlog10 ~ s(Latitude)+
            s(Longitude)+
            country+
            propPA+
@@ -245,17 +234,13 @@ summary(g)
 
 Now lets see if people use different types of access in different seasons.
 
-```{r GAM_seasonal, cache=T, dependson="by year"}
+```{r GAM_seasonal, cache=T, dependson="by year", eval=FALSE}
 
-gridYearsummermod <- gridYear %>% 
-  filter(country!="Russia") %>% 
-  filter(season=="summer") %>% 
-  mutate(photoCountlog10=log10(photoCount+1))
+gridYearsummermod <- gridYearmod %>% 
+  filter(season=="summer") 
 
-gridYearwintermod <- gridYear %>% 
-  filter(country!="Russia") %>% 
-  filter(season=="winter") %>% 
-  mutate(photoCountlog10=log10(photoCount+1))
+gridYearwintermod <- gridYearmod %>% 
+  filter(season=="winter") 
 
 #Summer
 gridYearsummermod <- within(gridYearsummermod, country <- relevel(country, ref = "Norway"))
