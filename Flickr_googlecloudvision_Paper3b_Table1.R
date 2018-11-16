@@ -94,8 +94,10 @@ count_es2 <- codetbl_long3 %>% filter(escode %in% c("biotic_managed", "biotic_bi
 names(count_es2)[1] <- "esgroup"
 count_es <- rbind(count_es, count_es2)
 count_es$oup <- with(count_es, paste0(googletag, " (", freq, ")"))
+count_es$oup_perc <- with(count_es, paste0(googletag, " (", round(100*freq/805684, 2), ")"))
 write.csv(count_es, "Summary_stats_for_Paper3b_Table1_freqgoogletags.csv", row.names=FALSE)
 
+count_es %>% group_by(esgroup) %>% select(oup_perc) %>% dput()
 
 #list of words associated with each ecosystem service, for Appendix
 appendix <- codetbl_long3 %>% drop_na() %>%
@@ -125,7 +127,10 @@ count_es_firsttag2 <- es_firsttag2 %>% group_by(escode, googletag) %>%
 names(count_es_firsttag2)[1] <- "esgroup"
 count_es_firsttag <- rbind(count_es_firsttag, count_es_firsttag2)
 count_es_firsttag$oup <- with(count_es_firsttag, paste0(googletag, " (", freq, ")"))
+count_es_firsttag$oup_perc <- with(count_es_firsttag, paste0(googletag, " (", round(100*freq/805684, 2), ")"))
 write.csv(count_es_firsttag, "Summary_stats_for_Paper3b_Table1_freqgoogletags_v2.csv", row.names = FALSE)
+
+count_es_firsttag %>% group_by(esgroup) %>% select(oup_perc) %>% dput()
 
 ############
 #Figure 1 for paper 3b: word cloud for biotic and abiotic nature
