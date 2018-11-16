@@ -18,10 +18,10 @@ flickramap$region <- flickramap$NAME_0
 #might also choose NAME_0 which splits countries into land/EEZ
 
 #load shapefile of protected areas
-pas <- read_sf("D:/Box Sync/Arctic/Data/Ecological/Arctic_Protected_areas_2017/CAFF_Protected_Areas_20_01_2017_nplaea.shp")
+pas <- read_sf("D:/Box Sync/Arctic/Data/Ecological/WDPA_protectedplanet/WDPA_plusCAFF_PAs_Amap60N.shp")
 
 #load number on % protected in each country
-perc_inPAs <- read.csv("CAFF_2017_PercentinPAs_byCountry.csv") 
+perc_inPAs <- read.csv("WDPA_CAFF_2017_PercentinPAs_byCountry.csv") 
 
 ###################
 ###Preliminary Processing
@@ -143,7 +143,7 @@ p1 <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
   theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
         axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
   #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
-  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou", type="discrete")[c(1,3)]),
+  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -154,8 +154,8 @@ p1 <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
                       byrow = T, # also the guide needs to be reversed
                       reverse = F, label.position = "bottom"))  
     #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
-#ggsave(filename="Perc_photos_inPAs_byregion_esgroup.png", p1)
-#ggsave(filename="Perc_photos_inPAs_byregion_esgroup.pdf", p1)
+ggsave(filename="Perc_photos_inPAs_byregion_esgroup_WDPACAFF.png", p1)
+ggsave(filename="Perc_photos_inPAs_byregion_esgroup_WDPACAFF.pdf", p1)
 
 #plot number of users taking photos inside protected areas
 p2 <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
@@ -165,7 +165,7 @@ p2 <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
   theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
         axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
   #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
-  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou", type="discrete")[c(1,3)]),
+  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -176,8 +176,8 @@ p2 <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
                       byrow = T, # also the guide needs to be reversed
                       reverse = F, label.position = "bottom"))  
     #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
-#ggsave(filename="Perc_users_inPAs_byregion_esgroup.png", p2)
-#ggsave(filename="Perc_users_inPAs_byregion_esgroup.pdf", p2)
+ggsave(filename="Perc_users_inPAs_byregion_esgroup_WDPACAFF.png", p2)
+ggsave(filename="Perc_users_inPAs_byregion_esgroup_WDPACAFF.pdf", p2)
 
 ###########
 photosbyregion <- subset(esoutdf, esoutdf$esgroup %in% c("abiotic", "biotic") & 
@@ -196,7 +196,7 @@ p3 <- ggplot(photosbyregion, aes(x=region, y=nphotos/100000, group=esgroup, fill
   theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
         axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
   #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
-  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou", type="discrete")[c(1,3)]),
+  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -207,8 +207,8 @@ p3 <- ggplot(photosbyregion, aes(x=region, y=nphotos/100000, group=esgroup, fill
                       byrow = T, # also the guide needs to be reversed
                       reverse = F, label.position = "bottom"))  
 #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
-#ggsave(filename="Num_photos_byregion_esgroup.png", p3)
-#ggsave(filename="Num_photos_byregion_esgroup.pdf", p3)
+ggsave(filename="Num_photos_byregion_esgroup.png", p3)
+ggsave(filename="Num_photos_byregion_esgroup.pdf", p3)
 
 
 ################
