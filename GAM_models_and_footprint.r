@@ -213,10 +213,9 @@ gridYearPUD_models <- gridYearPUD_models %>%
          PA = as.factor(PA), 
          PUDlog10=log10(PUD+1),
          country=as.factor(country))
-
-
 #set norway as the reference level
 gridYearPUD_models <- within(gridYearPUD_models, country <- relevel(country, ref = "NOR"))
+
 #dropped year, dropped populatedplaces, dist2popplaces, urbanareas
 g <- gam(PUDlog10 ~ s(Latitude)+
            s(Longitude)+
@@ -261,60 +260,44 @@ saveRDS(file="GAM_model2.Rdata", g)
 
 # Now lets see if people use different types of access in different seasons.
 
-gridYearsummermod <- gridYearPUD_models%>% 
+gridYearsummermod <- gridYearPUD_models %>% 
   filter(season=="summer") 
 
 gridYearwintermod <- gridYearPUD_models %>% 
   filter(season=="winter") 
 
 #Summer
-gridYearsummermod <- within(gridYearsummermod, country <- relevel(country, ref = "NOR"))
-gs <- gam(photoCountlog10 ~ s(Latitude)+
-           s(Longitude)+
-           year+
-           country+
-           propPA+
-           PA+
-           roadlength+
-           dist2road+
-           airports+
-           dist2airports+
-           ports+
-           dist2ports+
-           populated_places+
-           dist2populated_places+
-           urban_areas+
-           dist2urban_areas,
+gs <- gam(PUDlog10 ~ s(Latitude)+
+            s(Longitude)+
+            country+
+            PA+
+            roadlength+
+            dist2road+
+            dist2airports+
+            dist2ports+
+            dist2populated_places,
          data = gridYearsummermod, method = "REML")
-sink("GAM_model1_summer_summary.txt")
-print(gam.check(gs))
+sink("GAM_model2_summer_summary.txt")
+#print(gam.check(gs))
 print(summary(gs))
 print(AIC(gs))
 sink()
-saveRDS(file="GAM_model1_summer.Rdata", gs)
+saveRDS(file="GAM_model2_summer.Rdata", gs)
 
 #Winter
-gridYearwintermod <- within(gridYearwintermod, country <- relevel(country, ref = "Norway"))
-gw <- gam(photoCountlog10 ~ s(Latitude)+
-           s(Longitude)+
-           year+
-           country+
-           propPA+
-           PA+
-           roadlength+
-           dist2road+
-           airports+
-           dist2airports+
-           ports+
-           dist2ports+
-           populated_places+
-           dist2populated_places+
-           urban_areas+
-           dist2urban_areas,
+gw <- gam(PUDlog10 ~ s(Latitude)+
+            s(Longitude)+
+            country+
+            PA+
+            roadlength+
+            dist2road+
+            dist2airports+
+            dist2ports+
+            dist2populated_places,
          data = gridYearwintermod, method = "REML")
-sink("GAM_model1_winter_summary.txt")
-print(gam.check(gw))
+sink("GAM_model2_winter_summary.txt")
+#print(gam.check(gw))
 print(summary(gw))
 print(AIC(gw))
 sink()
-saveRDS(file="GAM_model1_winter.Rdata", gw)
+saveRDS(file="GAM_model2_winter.Rdata", gw)
