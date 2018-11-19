@@ -73,17 +73,14 @@ AllFlickr <- read.csv("Flickr_global_nphotostaken_byhr_2000to2018.csv") %>%
   group_by(year) %>% 
   summarize("Total Flickr Photos" = sum(total))
 
-# naturalearth layers, change ne_load() with ne_download() if the data is not downloaded yet
-roads <- ne_load(type="roads",
-                     scale="large",
-                     returnclass = "sf",
-                     destdir = getwd())  %>% 
+# Global Roads Inventory Project (GRIP) dataset 
+roads <- st_read("Arctic_roads_GRIP.shp") %>% 
   st_transform(st_crs(flickramap)) %>% 
   st_intersection(bb)
 
 #ggplot(roads)+
  # geom_sf()
-
+# naturalearth layers, change ne_load() with ne_download() if the data is not downloaded yet
 airports <- ne_load(type="airports",
                      scale="large",
                      returnclass = "sf",
