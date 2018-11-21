@@ -12,7 +12,7 @@ library(tidyverse)
 
 
 ### load data
-flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_laea_icelandupdate_urban.shp")
+load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
 
 ### prelim processing
 # add lulc that each photo falls within
@@ -31,28 +31,25 @@ flickrshp <- read_sf("D:/Box Sync/Arctic/Data/Flickr/Flickr_Artic_60N_byregion_l
 #flickr_nodev <- flickrshp[!which(flickrshp$lulc_code %in% c()), ]
 
 # Extract a subset of 1000 from each region
-#set list of regions to process (drop faroes & uk islands)
+#set list of regions to process (drop uk islands)
+flickramap$region <- unlist(lapply(1:nrow(flickramap),  function(i) {
+                      x <- strsplit(flickramap$region[i], " EEZ")[[1]][1]
+                      return(x)
+}))
+
+unique(flickramap$region)
+
 set.seed(42)
-regionlist <- list(IcelandGreenland=c("Iceland", "Greenland"),
-                   NorthAmerica = c("Alaska", "Canada"), 
-                   Scandinavia=c("Norway", "Sweden"), 
-                   Finland=c("Finland", "Aland"), 
-                   Russia=c("Russia"), 
-                   Marine=c("Marine"))
+#extract rows for that region
+flickrshp_val <- flickramap %>% filter(!region %in% c("UK", "United Kingdom", "Jan Mayen", "High Seas")) %>%
+                    mutate(region = if_else(region=="Faroe Is.", "Faroe Islands", region),
+                            region = if_else(region=="Svalbard", "Svalbard and Jan Mayen", region)) %>% 
+                    group_by(region) %>%
+                    sample_n(300) %>%
+                    ungroup()
 
-flickr_l <- lapply(seq_along(regionlist), function(i){
-  curregion <- regionlist[i] 
-  #extract rows for that region, drop unwanted cols
-  flickrshp_sub <- flickrshp[flickrshp$region %in% curregion[[1]] & is.na(flickrshp$InCity), c("id", "owner", "datetkn", "title", "tags", "url_m", "month", "year", "yearmon", "phot_lt", "region")]
-  flickrshp_sample <- flickrshp_sub[sample(nrow(flickrshp_sub), 1000), ]
-})
-
-flickr_val <- do.call(rbind, flickr_l)
-#Save the validation subset as .shp
-st_write(flickr_val, "validation/Flickr_Artic_60N_validationdata.shp")
-#Save as .csv
-flickr_val_df <- flickr_val[] %>% st_set_geometry(NULL) %>% data.frame() 
-write.csv(flickr_val_df, "validation/Flickr_Artic_60N_validationdata.csv", fileEncoding = "UTF-8")
+#Save the validation subset
+write.csv(flickrshp_val, "validation/Flickr_Artic_60N_validationdata.csv", fileEncoding = "UTF-8")
 
 
 #### Make a list of the common keywords ----
