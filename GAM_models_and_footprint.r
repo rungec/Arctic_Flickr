@@ -80,8 +80,6 @@ adj_fun <- function(gridYearPUD){
 #how many pud in each grid cell in each year-season, for the models
 gridYearPUD_models <- PUD_grid(flickramap, flickramap$yearseason, grid_models) 
 saveRDS(gridYearPUD_models,file = paste0("gridYearPUD_models",10000,"_m.Rdata"))
-byYear_models <- adj_fun(gridYearPUD_models)
-saveRDS(byYear_models,file = paste0("flickr/byYear_models",10000,"_m.Rdata"))
 rm(gridYearPUD_models)
 
 #how many photos in each grid cell in each year-season, for the footprint analysis
@@ -212,7 +210,8 @@ gridYearPUD_models <- gridYearPUD_models %>%
          dist2urban_areas = dist2urban_areas/1000, 
          PA = as.factor(PA), 
          PUDlog10=log10(PUD+1),
-         country=as.factor(country))
+         country=as.factor(country),
+         year=as.integer(year))
 #set norway as the reference level
 gridYearPUD_models <- within(gridYearPUD_models, country <- relevel(country, ref = "NOR"))
 
