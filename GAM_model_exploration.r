@@ -8,7 +8,7 @@ setwd("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/gam_10km")
 #plot(gw, all.terms = TRUE)
 
 currdf <- readRDS("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/input/gridYearPUD_models10000_m.Rdata")
-currdf <- currdf %>% filter(season=="winter") %>%
+currdf <- currdf %>%
   select(-one_of("geometry")) %>%
   filter(country!="Russia") %>%
   mutate(dist2airports=if_else(dist2airports==0, 1, dist2airports), 
@@ -194,6 +194,31 @@ plot(V1, smooth=FALSE)
 dists <- dist(subdf[,7:8])
 summary(dists)
 d0 <- which(dists==0) #some are zero because we have temporal replicates
+
+
+#Models summer vs winter
+subdf_s <- subdf %>% filter(season=="summer")
+subdf_w <- subdf %>% filter(season=="winter")
+g2_s <- gamm(PUDlog ~  s(year) + s(roadkm) + s(logdist2airports) + logdist2road + logdist2ports + logdist2populated_places + PA, 
+             random=list(country=~1), 
+             correlation = corARMA(form = ~ 1|year, p=1, q=2), 
+             data=subdf_s, method="REML")
+g2_w <- gamm(PUDlog ~  s(year) + s(roadkm) + s(logdist2airports) + logdist2road + logdist2ports + logdist2populated_places + PA, 
+             random=list(country=~1), 
+             correlation = corARMA(form = ~ 1|year, p=1, q=2), 
+             data=subdf_w, method="REML")
+
+par(mfrow=c(2,2))
+plot(g2_s$gam)
+sink("GAM_model2_ma2_summer_summary.txt")
+print(summary(g2_s$gam))
+print(gam.check(g2_s$gam))
+sink()
+sink("GAM_model2_ma2_winter_summary.txt")
+print(summary(g2_w$gam))
+print(gam.check(g2_w$gam))
+sink()
+
 
 
 #vis.gam
