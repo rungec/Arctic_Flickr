@@ -31,7 +31,7 @@ subdf <- currdf %>% filter(PUD>0) %>%
          logdist2airports = log(dist2airports),
          logdist2ports = log(dist2ports),
          logdist2populated_places = log(dist2populated_places),
-         roadkm = roadlength/1000
+         sqrtroadkm = sqrt(roadlength/1000)
          )
 rm(currdf)
 
@@ -138,12 +138,6 @@ par(mfrow=c(2,2))
 print(gam.check(gma2$gam))
 sink()
 
-par(mfrow=c(2,2))
-acf(resid(g2$lme, type="normalized"), main="ACF")
-pacf(resid(g2$lme, type="normalized"), main="PACF")
-acf(resid(gma2$lme, type="normalized"), main="ACF")
-pacf(resid(gma2$lme, type="normalized"), main="PACF")
-
 
 #try more parsimonious models
 # Drop PA
@@ -187,8 +181,12 @@ sink()
 
 
 #check spatial autocorrelation using 2016 data
-gsc <- gamm(PUDlog ~ logdist2road + s(roadkm) + s(logdist2airports) + logdist2ports + logdist2populated_places + PA, random=list(country=~1), correlation = corRatio(form = ~ Latitude + Longitude, nugget=TRUE), data=subdf[subdf$year==2016,], method="REML")
-V1<- Variogram(gsc$lme, form=~Latitude+Longitude, nugget=TRUE, data=subdf[subdf$year==2016,])
+gsc <- gamm(PUDlog ~ logdist2road + s(roadkm) + s(logdist2airports) + logdist2ports + logdist2populated_places + PA, random=list(country=~1), correlation = corRatio(form = ~ Latitude + Longitude, nugget=TRUE), data=subdf_w[subdf_w$year==2016,], method="REML")
+V1<- Variogram(gsc$lme, form=~Latitude+Longitude, nugget=TRUE, data=subdf_w[subdf_w$year==2016,])
+plot(V1, smooth=FALSE)
+
+gsc <- gamm(PUDlog ~ s(Latitude) + s(Longitude) + logdist2road + s(roadkm) + s(logdist2airports) + logdist2ports + logdist2populated_places + PA, random=list(country=~1), correlation = corRatio(form = ~ Latitude + Longitude, nugget=TRUE), data=subdf_w[subdf_w$year==2016,], method="REML")
+V1<- Variogram(gsc$lme, form=~Latitude+Longitude, nugget=TRUE, data=subdf_w[subdf_w$year==2016,])
 plot(V1, smooth=FALSE)
 
 dists <- dist(subdf[,7:8])
@@ -203,9 +201,17 @@ g2_s <- gamm(PUDlog ~  s(year) + s(roadkm) + s(logdist2airports) + logdist2road 
              random=list(country=~1), 
              correlation = corARMA(form = ~ 1|year, p=1, q=2), 
              data=subdf_s, method="REML")
-g2_w <- gamm(PUDlog ~  s(year) + s(roadkm) + s(logdist2airports) + logdist2road + logdist2ports + logdist2populated_places + PA, 
+
+g2_w <- gamm(PUDlog ~  s(year) + s(Latitude) + s(Longitude) + 
+               s(logdist2airports) + s(logdist2road) + s(logdist2ports) + s(logdist2populated_places) + 
+               sqrtroadkm + PA, 
              random=list(country=~1), 
-             correlation = corARMA(form = ~ 1|year, p=1, q=2), 
+             #correlation = corARMA(form = ~ 1|year, p=1, q=2), 
+             data=subdf_w, method="REML")
+g2_w2 <- gamm(PUDlog ~  s(logdist2airports) + s(logdist2road) + s(logdist2ports) + s(logdist2populated_places) + 
+               s(sqrtroadkm) + PA, 
+             random=list(country=~1), 
+             #correlation = corARMA(form = ~ 1|year, p=1, q=2), 
              data=subdf_w, method="REML")
 
 par(mfrow=c(2,2))
@@ -219,10 +225,33 @@ print(summary(g2_w$gam))
 print(gam.check(g2_w$gam))
 sink()
 
+#CHECK FOR SPATIAL AND TEMPORAL AUTOCORRELATION
 
+newdf <- subdf_w %>% add_residuals(g2_w2$gam)
+newdf$time <- lubridate::ymd(newdf$year, truncated = 2L)
+newdf_sp <- newdf
+sp::coordinates(newdf_sp) <- c('Latitude', 'Longitude')
+#make stidf object for variogramST - this wont work until we add all the data for all years
+#newdf_time <- lubridate::ymd(newdf$year, truncated = 2L)
+#newdf_rep <- newdf$resid
+#newdf_ST <- spacetime::STIDF(sp=newdf, time=newdf_time, data=newdf_rep)
+
+sp::bubble(newdf_sp, zcol='resid')
+V1<- gstat::variogram(resid~Latitude+Longitude, data=newdf_sp)
+#V2<- gstat::variogramST(resid~1, data=newdf_ST, tlags=0:16, tunit="years")
+
+V2 <- ggplot(newdf, aes(time, resid, group=time)) + geom_violin()
+
+par(mfrow=c(1,2))
+plot(V1)
+plot(V2)
 
 #vis.gam
-
+newdf_spread <- newdf %>% 
+                    select(time, resid, row.id) %>%
+                    spread(row.id, resid)
+acf(newdf_spread, lag.max=16, na.action = na.pass)
+#this has to be year in each row, and cell id in each column, values in cells=resid
 
 ### Make marginal plots
 newdf <- subdf %>% mutate(dist2road=seq(0, 1, length.out = 10000), 
@@ -235,10 +264,12 @@ newdf <- subdf %>% mutate(dist2road=seq(0, 1, length.out = 10000),
                     dist2populated_places=mean(dist2populated_places),
                     PA=as.factor(FALSE))
                     
-newpreds <- newdf %>% add_predictions(g7$gam)
+newpreds <- newdf %>% add_predictions(g2_w2$gam)
 
-ggplot(newpreds, aes(x=dist2road, y=pred)) +
-  geom_point(col="black")+ facet_wrap(~year)
+ggplot(newpreds, aes(x=sqrtroadkm, y=pred)) +
+  geom_point(col="black") + 
+  geom_point(aes(x=sqrtroadkm, y=PUDlog), col="blue", alpha=0.5) + 
+  facet_wrap(~year)
 
 
 ####      
