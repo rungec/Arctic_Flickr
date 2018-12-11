@@ -1,8 +1,10 @@
 
+require(MASS) #for negative binomial distribution #this masks select from dplyr so we load it first
 require(sf)
 require(tidyverse)
 require(lubridate)
 require(mgcv)
+
 
 #wd <- "D:/Box Sync/Arctic/Data"
 #setwd(wd)
@@ -91,7 +93,6 @@ saveRDS(byYear_footprint,file = paste0("flickr/byYear_footprint",5000,"_m.Rdata"
 ## Now that we have all our basic data ready to go, let's vizualize!
 
 # First, lets see if there is a change in the number of PUDs over time?
-
 correct <- byYear_footprint %>% 
   filter(variable=="correctionFact") %>% 
   select(-variable)
@@ -196,10 +197,17 @@ ggsave(filename="flickr/Flickr_footprint_metrics.png", p3)
 
 rm(gridYearPUD_footprint)
 
+
+
+#########################
+###MODELS
+#########################
+
 ## Let's see if we can see what is driving these changes. First lets model whether people visit protected areas more than expected
+setwd("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model")
+gridYearPUD_models <- readRDS("input/gridYearPUD_models10000_m.Rdata")
 
-gridYearPUD_models <- readRDS("gridYearPUD_models10000_m.Rdata")
-
+###MODELS - SET UP DATA
 gridYearPUD_models <- gridYearPUD_models %>%
   select(-one_of("geometry")) %>%
   filter(country!="Russia") %>%
@@ -209,94 +217,110 @@ gridYearPUD_models <- gridYearPUD_models %>%
          dist2road = dist2road/1000,
          dist2urban_areas = dist2urban_areas/1000, 
          PA = as.factor(PA), 
-         PUDlog10=log10(PUD+1),
+         #PUDlog10=log10(PUD+1),
          country=as.factor(country),
          year=as.integer(year))
 #set norway as the reference level
 gridYearPUD_models <- within(gridYearPUD_models, country <- relevel(country, ref = "NOR"))
 
-#dropped year, dropped populatedplaces, dist2popplaces, urbanareas
-g <- gam(PUDlog10 ~ s(Latitude)+
-           s(Longitude)+
-           country+
-           propPA+
-           season+
-           PA+
-           roadlength+
-           dist2road+
-           airports+
-           dist2airports+
-           ports+
-           dist2ports+
-           dist2urban_areas,
-         data = gridYearPUD_models, method = "REML")
-sink("GAM_model1_summary.txt")
-print(gam.check(g))
-print(summary(g))
-print(AIC(g))
-sink()
-saveRDS(file="GAM_model1.Rdata", g)
-
-
-#dropped year, dropped populatedplaces, dist2popplaces, urbanareas
-g <- gam(PUDlog10 ~ s(Latitude)+
-           s(Longitude)+
-           country+
-           PA+
-           roadlength+
-           dist2road+
-           dist2airports+
-           dist2ports+
-           dist2populated_places,
-         data = gridYearPUD_models, method = "REML")
-sink("GAM_model2_summary.txt")
-print(gam.check(g))
-print(summary(g))
-print(AIC(g))
-sink()
-saveRDS(file="GAM_model2.Rdata", g)
-
-
 # Now lets see if people use different types of access in different seasons.
-
 gridYearsummermod <- gridYearPUD_models %>% 
   filter(season=="summer") 
 
 gridYearwintermod <- gridYearPUD_models %>% 
   filter(season=="winter") 
 
-#Summer
-gs <- gam(PUDlog10 ~ s(Latitude)+
-            s(Longitude)+
-            country+
-            PA+
-            roadlength+
-            dist2road+
-            dist2airports+
-            dist2ports+
-            dist2populated_places,
-         data = gridYearsummermod, method = "REML")
-sink("GAM_model2_summer_summary.txt")
-#print(gam.check(gs))
+#########################
+###MODEL SUMMER
+#########################
+
+###MODEL SUMMER - MOST PARSIMONIOUS
+gs <- gam(PUD ~ s(year) + 
+                   s(Latitude) + s(Longitude)+
+                   country +
+                   PA +
+                   s(roadlength),
+                 data = gridYearsummermod, method = "REML", 
+                 family = negative.binomial(1))
+
+sink("GAM_summer_model1_summary.txt")
+par(mfrow=c(2,2))
+print(gam.check(gs))
+par(mfrow=c(3,3))
+plot(gs)
 print(summary(gs))
 print(AIC(gs))
 sink()
-saveRDS(file="GAM_model2_summer.Rdata", gs)
+saveRDS(file="GAM_summer_model1.Rdata", gs)
 
-#Winter
-gw <- gam(PUDlog10 ~ s(Latitude)+
-            s(Longitude)+
-            country+
-            PA+
-            roadlength+
-            dist2road+
-            dist2airports+
-            dist2ports+
-            dist2populated_places,
-         data = gridYearwintermod, method = "REML")
-sink("GAM_model2_winter_summary.txt")
-#print(gam.check(gw))
-print(summary(gw))
-print(AIC(gw))
-sink()
-saveRDS(file="GAM_model2_winter.Rdata", gw)
+#FORWARD MODEL SELECTION: add 1 variable
+gs2 <- gam(PUD ~ s(year) + 
+             s(Latitude) + s(Longitude)+
+             country +
+             PA +
+             s(roadlength) +
+             s(dist2road),
+           data = gridYearsummermod, method = "REML", 
+           family = negative.binomial(1))
+gs3 <- gam(PUD ~ s(year) + 
+             s(Latitude) + s(Longitude)+
+             country +
+             PA +
+             s(roadlength) +
+             s(dist2airports),
+           data = gridYearsummermod, method = "REML", 
+           family = negative.binomial(1))
+gs4 <- gam(PUD ~ s(year) + 
+             s(Latitude) + s(Longitude)+
+             country +
+             PA +
+             s(roadlength) +
+             s(dist2populated_places),
+           data = gridYearsummermod, method = "REML", 
+           family = negative.binomial(1))
+gs5 <- gam(PUD ~ s(year) + 
+             s(Latitude) + s(Longitude)+
+             country +
+             PA +
+             s(roadlength) +
+             s(dist2ports),
+           data = gridYearsummermod, method = "REML", 
+           family = negative.binomial(1))
+anova(gs1, gs2, gs3, gs4, gs5)
+
+#FORWARD MODEL SELECTION: add 2 variables
+gs6 <- gam(PUD ~ s(year) + 
+             s(Latitude) + s(Longitude)+
+             country +
+             PA +
+             s(roadlength) +
+             s(dist2airports) + s(dist2road),
+           data = gridYearsummermod, method = "REML", 
+           family = negative.binomial(1))
+gs7 <- gam(PUD ~ s(year) + 
+             s(Latitude) + s(Longitude)+
+             country +
+             PA +
+             s(roadlength) +
+             s(dist2airports) + s(dist2ports),
+           data = gridYearsummermod, method = "REML", 
+           family = negative.binomial(1))
+gs8 <- gam(PUD ~ s(year) + 
+             s(Latitude) + s(Longitude)+
+             country +
+             PA +
+             s(roadlength) +
+             s(dist2airports) + s(dist2populated_places),
+           data = gridYearsummermod, method = "REML", 
+           family = negative.binomial(1))
+gs9 <- gam(PUD ~ s(year) + 
+             s(Latitude) + s(Longitude)+
+             country +
+             PA +
+             s(roadlength) + 
+             s(dist2ports) + s(dist2populated_places),
+           data = gridYearsummermod, method = "REML", 
+           family = negative.binomial(1))
+anova(gs1, gs6, gs7, gs8, gs9)
+
+
