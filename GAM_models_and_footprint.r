@@ -1,5 +1,8 @@
 
-require(MASS) #for negative binomial distribution #this masks select from dplyr so we load it first
+#########################
+##LIBRARIES and FILES
+#########################
+
 require(sf)
 require(tidyverse)
 require(lubridate)
@@ -33,7 +36,9 @@ AllFlickr <- read.csv("flickr/Flickr_global_nphotostaken_byhr_2000to2018.csv") %
   group_by(yearseason) %>% 
   summarize("Total Flickr Photos" = sum(total))
 
-
+#########################
+##SET UP DATA
+#########################
 ## We need to calculate the number of Flickr photos per year and correct it based on total Flickr usage over the years
 
 #add yearseason to flickramap
@@ -90,6 +95,9 @@ saveRDS(gridYearPUD_footprint,file = paste0("gridYearPUD_footprint",5000,"_m.Rda
 byYear_footprint <- adj_fun(gridYearPUD_footprint)
 saveRDS(byYear_footprint,file = paste0("flickr/byYear_footprint",5000,"_m.Rdata"))
 
+######################
+###FOOTPRINT ANALYSIS
+######################
 ## Now that we have all our basic data ready to go, let's vizualize!
 
 # First, lets see if there is a change in the number of PUDs over time?
@@ -112,9 +120,7 @@ ggsave(filename="flickr/Flickr_footprint_vs_global.png", p1)
 
 
 ## Both the total number of photos on Flickr and in the Arctic increase over time, but the Arctic represents an increasing share of Flickr's yearly photo traffic.
-
 # Are these increasing numbers of tourists always visiting the same places, or are they exploring new grounds?
-
 # spatial footprint expanded?
 
 plotData2 <- filter(gridYearPUD_footprint, PUD>0) %>% 
@@ -197,8 +203,6 @@ ggsave(filename="flickr/Flickr_footprint_metrics.png", p3)
 
 rm(gridYearPUD_footprint)
 
-
-
 #########################
 ###MODELS
 #########################
@@ -233,6 +237,34 @@ gridYearwintermod <- gridYearPUD_models %>%
 #########################
 ###MODEL SUMMER
 #########################
+###set up cluster
+require(parallel)  
+nc <- 8   ## cluster size
+if (detectCores()>1) { 
+  cl <- makeCluster(nc) 
+} else cl <- NULL
+
+#Summer
+gs <- bam(PUD ~ s(year, bs="cr") + 
+            s(Latitude, bs="cr") + s(Longitude, bs="cr")+
+            country +
+            PA +
+            s(roadlength, bs="cr") +
+            s(dist2road, bs="cr") +
+            s(dist2airports, bs="cr") +
+            s(dist2ports, bs="cr") +
+            s(dist2populated_places, bs="cr"),
+          data = gridYearsummermod,  
+          family = nb(), cluster=cl)
+
+anova(gs)
+summary(gs)
+par(mfrow=c(2,2))
+gam.check(gs)
+par(mfrow=c(3,3))
+plot(gs)
+
+if (!is.null(cl)) stopCluster(cl)
 
 ###MODEL SUMMER - MOST PARSIMONIOUS
 gs <- gam(PUD ~ s(year) + 
