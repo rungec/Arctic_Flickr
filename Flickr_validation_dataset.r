@@ -51,6 +51,32 @@ flickrshp_val <- flickramap %>% filter(!region %in% c("UK", "United Kingdom", "J
 #Save the validation subset
 write.csv(flickrshp_val, "validation/Flickr_Artic_60N_validationdata.csv", fileEncoding = "UTF-8")
 
+#subset this data into samples for each coder
+dat <- read.csv("validation/Flickr_Artic_60N_validationdata.csv")
+dat <- dat[, c("id", "year", "Country", "url_m")]
+
+#allocate 25% of the photos to each person (750 photos)
+ss <- sample(1:5, nrow(dat), replace=T, prob=c(0.2,0.2,0.2,0.3,0.1))
+
+vh <- dat[ss==1,]
+rm <- dat[ss==2,]
+cm <- dat[ss==3,]
+cr <- dat[ss==4,]
+icr <- dat[ss==5,]
+
+#add column coder
+vh <- vh %>% bind_rows(icr) %>% mutate(coder="VH")
+rm <- rm %>% bind_rows(icr) %>% mutate(coder="RM")
+cm <- cm %>% bind_rows(icr) %>% mutate(coder="CM")
+cr <- cr %>% bind_rows(icr) %>% mutate(coder="CR")
+
+#then allocate them an extra 300 photos overlapped with the others
+write.csv(vh, "validation/Flickr_Arctic_60N_validationdata_VH.csv")
+write.csv(rm, "validation/Flickr_Arctic_60N_validationdata_RM.csv")
+write.csv(cm, "validation/Flickr_Arctic_60N_validationdata_CM.csv")
+write.csv(cr, "validation/Flickr_Arctic_60N_validationdata_CR.csv")
+write.csv(icr, "validation/Flickr_Arctic_60N_validationdata_intercoder.csv")
+
 
 #### Make a list of the common keywords ----
 
