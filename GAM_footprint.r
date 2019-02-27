@@ -18,10 +18,6 @@ setwd(wd)
 #load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
 load("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
 
-#load data on accessibility and PA that has been gridded to 10000m (script Flickr_spatialoverlaps_for_gams.r).
-#load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/input/ArcticAMAP_griddedaccessibilitydata_10000_m.Rdata")
-load("flickr/ArcticAMAP_griddedaccessibilitydata_10000_m.Rdata")
-
 #load grid for footprint analysis
 #load("D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model/input/ArcticAMAP_templatehexgrid_5000_m.Rdata")
 load("flickr/ArcticAMAP_templatehexgrid_5000_m.Rdata")
@@ -83,11 +79,6 @@ adj_fun <- function(gridYearPUD){
                       separate(yearseason, c("year", "season"), sep="_", remove=FALSE)
                      return(byYear)
 }
-
-#how many pud in each grid cell in each year-season, for the models
-gridYearPUD_models <- PUD_grid(flickramap, flickramap$yearseason, grid_models) 
-saveRDS(gridYearPUD_models,file = paste0("gridYearPUD_models",10000,"_m.Rdata"))
-rm(gridYearPUD_models)
 
 #how many photos in each grid cell in each year-season, for the footprint analysis
 gridYearPUD_footprint <- PUD_grid(flickramap, flickramap$yearseason, grid_footprint) 
