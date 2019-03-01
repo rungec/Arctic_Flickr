@@ -39,7 +39,7 @@ AllFlickr <- AllFlickr %>%
   mutate("Global increase" = case_when(season=="summer"~.$"Total Flickr Photos"/summerval, 
                           season=="winter"~.$"Total Flickr Photos"/winterval)) %>%
   select(-c(year, season))
-write.csv(AllFlickr, "Global_nphotos_by_yearseason.csv")
+write.csv(AllFlickr, "Global_nphotos_by_yearseason.csv", row.name=FALSE)
 
 #########################
 ##SET UP DATA
@@ -53,7 +53,7 @@ flickramap$year_old <- as.numeric(flickramap$year)
 flickramap <- flickramap %>% 
         mutate(year=(if_else(month %in% c("11", "12"), year_old + 1, as.numeric(year)))) %>%
         mutate(yearseason = paste(year, season, sep="_"))
-flickramap <- flickramap %>% select(c(id, year, yearseason)) %>% filter(year<=2017)
+flickramap <- flickramap %>% select(c(id, year, season, yearseason)) %>% filter(year<=2017)
 
 #function to calculate the number of photos (not PUD) in each grid cell in each season 
 photo_grid <- function(flickrrecords, time, grid){
@@ -93,7 +93,8 @@ gridYear_nphoto <- photo_grid(flickramap, flickramap$yearseason, grid_footprint)
 saveRDS(gridYear_nphoto,file = paste0("gridYear_nphoto_footprint",5000,"_m.Rdata"))
 #for each yearseason, how many Arctic photos, global photos, percent arctic traffic, correction factor
 byYear <- adj_fun(gridYear_nphoto)
-write.csv(byYear, paste0("nPhotos_byYear_andseason_",5000,"_m.csv"))
+write.csv(byYear, paste0("nPhotos_byYear_andseason_",5000,"_m.csv"), row.names=FALSE)
+#byYear <- read.csv(paste0("nPhotos_byYear_andseason_",5000,"_m.csv"), header=TRUE)
 
 
 ######################
@@ -102,27 +103,53 @@ write.csv(byYear, paste0("nPhotos_byYear_andseason_",5000,"_m.csv"))
 ## Now that we have all our basic data ready to go, let's vizualize!
 
 # First, lets see if there is a change in the number of photos over time?
-plotData <- byYear %>% 
-  filter(variable!="Global bias sample size")
 #plot showing all, arctic, and % traffic
-unique(plotData$variable)
-#reorder
-plotData$variable <- ordered(plotData$variable,levels=c("Total Flickr Photos","Arctic photos","Percent Traffic"))
-plotData$year <- as.numeric(plotData$year)
+plotData <- byYear %>% 
+  filter(variable %in% c("Total Flickr Photos","Arctic photos","Percent Traffic")) %>%
+  droplevels() %>% 
+  mutate(year = as.numeric(year)) %>%
+  mutate(value = (if_else(variable=="Percent Traffic", value*100, value)))
+plotData$variable <- ordered(plotData$variable, levels=c("Total Flickr Photos","Arctic photos","Percent Traffic"))
+plotData$season <- factor(plotData$season, labels=c("Summer", "Winter"))
+
 p1 <- ggplot(plotData) + 
-  geom_line(aes(x=year,y=value, color=season)) +
-  facet_grid(vars(variable),scales="free_y")
+  geom_area(aes(x=year,y=value, fill=season), position = "identity") +
+  scale_fill_manual(name="", values=c("#1f78b4","#a6cee3")) +
+  facet_grid(vars(variable),scales="free_y") +
+  theme_bw(14) +
+  scale_x_continuous(expand=c(0,0)) +
+  xlab("Year") +
+  theme(strip.background=element_rect(fill="white", color=NA), strip.text=element_text(size=12), 
+        axis.text=element_text(size=12), 
+        axis.title.x=element_text(vjust=-0.35), 
+        axis.title.y=element_text(vjust=2.0), 
+        legend.position="bottom", legend.text=element_text(size=14))
 ggsave(filename="Flickr_footprint_vs_global.png", p1)
+
+
+geom_area(aes(x=year, y=footprint_percent, fill=type),position = "identity") +
+  scale_fill_manual(name="", values=c("#1f78b4","#b2df8a","#a6cee3")) +
+  facet_wrap(vars(season)) +
+  xlab("Year") + ylab("Footprint (% of Arctic)") +
+  scale_x_continuous(expand=c(0,0), breaks=c(2007, 2010, 2013, 2016)) +
+  scale_y_continuous(expand=c(0,0), limits=c(0,0.39)) +
+  theme_bw(18) +
+  theme(strip.background=element_rect(fill="white", color=NA), strip.text=element_text(size=18), 
+        axis.text=element_text(size=16), 
+        axis.title.x=element_text(vjust=-0.35), 
+        axis.title.y=element_text(vjust=2.0), 
+        legend.position="bottom", legend.text=element_text(size=18))
+
 
 
 ## Both the total number of photos on Flickr and in the Arctic increase over time, but the Arctic represents an increasing share of Flickr's yearly photo traffic.
 # Are these increasing numbers of tourists always visiting the same places, or are they exploring new grounds?
 # spatial footprint expanded?
 
-plotData <- gridYear_nphoto %>% 
+plotData2 <- gridYear_nphoto %>% 
   group_by(yearseason) %>% 
   summarise(footprint = mean(nphotos>0)) %>% #this calculates the proportion of cells with photos
-  mutate(type="Uncorrected Arctic footprint")
+  mutate(type="Uncorrected")
 
 # this samples n records from each year in flickramap
 # n was the number of records in the first year (2004)
@@ -151,15 +178,16 @@ plotData_equaln_w <- photo_grid(equaln_sample_flickr_w, equaln_sample_flickr_w$y
 #next lets correct for the global increase in flickr use
 correct <- byYear %>% 
   filter(variable=="Global bias sample size") %>% 
-  select(c(yearseason, value))
+  select(c(yearseason, value)) %>%
+  mutate(yearseason = as.character(yearseason))
 
 #take a sample of flickramap corrected for the global increase in flickr use
 trafficn_sample_flickr <- flickramap %>% 
   nest(-yearseason)  %>% 
   left_join(correct, by="yearseason") %>% 
   #map2(data, value, sample_n)
-  #mutate(Sample = map2(data, value, sample_n)) %>%
-  #unnest(Sample) %>% 
+  mutate(Sample = map2(data, value, sample_n)) %>%
+  unnest(Sample) %>% 
   st_as_sf(crs = st_crs(flickramap))
 
 table(trafficn_sample_flickr$yearseason)
@@ -171,15 +199,28 @@ plotData_trafficn <- photo_grid(trafficn_sample_flickr, trafficn_sample_flickr$y
   summarise(footprint=mean(nphotos>0)) %>% 
   mutate(type="Global bias-corrected")
 
-plotDataAll <- rbind(plotData,plotData_equaln_s, plotData_equaln_w, plotData_trafficn)
+plotDataAll <- rbind(plotData2, plotData_equaln_s, plotData_equaln_w, plotData_trafficn)
 
 plotDataAll$type <- ordered(plotDataAll$type,levels = unique(plotDataAll$type)[c(1,3,2)])
 plotDataAll <- separate(plotDataAll, yearseason, c("year", "season"), sep="_", remove=FALSE) %>%     mutate(year=as.numeric(year))
+plotDataAll$season <- factor(plotDataAll$season, labels=c("Summer", "Winter"))
+plotDataAll$footprint_percent <- plotDataAll$footprint*100
+write.csv(plotDataAll, "Flickr_footprint_across_time.csv", row.names=FALSE)
+
 
 p3 <- ggplot(plotDataAll) +
-  geom_area(aes(x=year, y=footprint, fill=type),position = "identity") +
-  scale_fill_manual(values=c("#1f78b4","#b2df8a","#a6cee3")) +
+  geom_area(aes(x=year, y=footprint_percent, fill=type),position = "identity") +
+  scale_fill_manual(name="", values=c("#1f78b4","#b2df8a","#a6cee3")) +
   facet_wrap(vars(season)) +
-  theme_classic()
-ggsave(filename="Flickr_footprint_metrics.png", p3)
+  xlab("Year") + ylab("Footprint (% of Arctic)") +
+  scale_x_continuous(expand=c(0,0), breaks=c(2007, 2010, 2013, 2016)) +
+  scale_y_continuous(expand=c(0,0), limits=c(0,0.39)) +
+  theme_bw(18) +
+  theme(strip.background=element_rect(fill="white", color=NA), strip.text=element_text(size=18), 
+        axis.text=element_text(size=16), 
+        axis.title.x=element_text(vjust=-0.35), 
+        axis.title.y=element_text(vjust=2.0), 
+        legend.position="bottom", legend.text=element_text(size=18))
+ggsave(filename="Flickr_footprint_metrics.png", p3, width=12, height = 7)
+ggsave(filename="Flickr_footprint_metrics.eps", p3, width=12, height = 7)
 
