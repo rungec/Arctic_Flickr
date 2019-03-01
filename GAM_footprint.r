@@ -53,7 +53,7 @@ flickramap$year_old <- as.numeric(flickramap$year)
 flickramap <- flickramap %>% 
         mutate(year=(if_else(month %in% c("11", "12"), year_old + 1, as.numeric(year)))) %>%
         mutate(yearseason = paste(year, season, sep="_"))
-flickramap <- flickramap %>% select(c(id, year, season, yearseason)) %>% filter(year<=2017)
+flickramap <- flickramap %>% select(c(id, year, season, yearseason, month)) %>% filter(year<=2017)
 
 #function to calculate the number of photos (not PUD) in each grid cell in each season 
 photo_grid <- function(flickrrecords, time, grid){
@@ -126,19 +126,20 @@ p1 <- ggplot(plotData) +
         legend.position="bottom", legend.text=element_text(size=14))
 ggsave(filename="Flickr_footprint_vs_global.png", p1)
 
+#How many photos per month in the Arctic?
+plotData1 <- flickramap %>%
+              group_by(month, season) %>%
+              summarise(nphotos=n())
+plotData1$season <- factor(plotData1$season, labels=c("Summer", "Winter"))
 
-geom_area(aes(x=year, y=footprint_percent, fill=type),position = "identity") +
-  scale_fill_manual(name="", values=c("#1f78b4","#b2df8a","#a6cee3")) +
-  facet_wrap(vars(season)) +
-  xlab("Year") + ylab("Footprint (% of Arctic)") +
-  scale_x_continuous(expand=c(0,0), breaks=c(2007, 2010, 2013, 2016)) +
-  scale_y_continuous(expand=c(0,0), limits=c(0,0.39)) +
-  theme_bw(18) +
-  theme(strip.background=element_rect(fill="white", color=NA), strip.text=element_text(size=18), 
-        axis.text=element_text(size=16), 
-        axis.title.x=element_text(vjust=-0.35), 
-        axis.title.y=element_text(vjust=2.0), 
-        legend.position="bottom", legend.text=element_text(size=18))
+p2 <- ggplot(plotData1) +
+  geom_col(aes(x=month, y=nphotos/1000, fill=season)) +
+  scale_fill_manual(name="", values=c("#1f78b4","#a6cee3")) +
+  xlab("Month") + ylab("Number of photos (thousand)") +
+  scale_y_continuous(expand=c(0,0)) +
+  theme_classic(16) +
+  theme(legend.position="bottom")
+ggsave(filename="Flickr_Arctic_nphotos_bymonth.png", p2, width=7, height=6)
 
 
 
