@@ -170,6 +170,11 @@ gam.check(gs)
 dev.off()
 sink()
 
+tiff("GAM_summer__model1s_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+par(mfrow=c(2,5))
+plot(gs, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
+dev.off()
+
 #Add a smoother to the logged accessibility variables
 gs1 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
             country +
@@ -191,6 +196,11 @@ par(mfrow=c(2,2))
 gam.check(gs1)
 dev.off()
 sink()
+
+tiff("GAM_summer__model11s_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+par(mfrow=c(2,5))
+plot(gs1, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
+dev.off()
 
 #increase the k value (adds more kinks in the smooth)  
 gsb <- bam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
@@ -280,12 +290,12 @@ gs0b <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
   dev.off()
   sink()
 
-#Add assessibility variables
+#Add assessibility variables, logged
 gs2 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
-             dist2road,
+             logdist2road,
            data = gridYearsummermod, 
            family = binomial, cluster=cl)
   sink("GAM_summer_model2_summary_binomial.txt")
@@ -299,7 +309,7 @@ gs3 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
-             dist2airports,
+             logdist2airports,
            data = gridYearsummermod,
            family = binomial, cluster=cl)
   sink("GAM_summer_model3_summary_binomial.txt")
@@ -313,7 +323,7 @@ gs4 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
-             dist2populated_places,
+             logdist2populated_places,
            data = gridYearsummermod, 
            family = binomial, cluster=cl)
   sink("GAM_summer_model4_summary_binomial.txt")
@@ -327,7 +337,7 @@ gs5 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
-             dist2ports,
+             logdist2ports,
            data = gridYearsummermod, 
            family = binomial, cluster=cl)
   sink("GAM_summer_model5_summary_binomial.txt")
@@ -345,7 +355,7 @@ gs6 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
-             dist2airports + dist2road,
+             logdist2airports + logdist2road,
            data = gridYearsummermod, 
            family = binomial, cluster=cl)
   sink("GAM_summer_model6_summary_binomial.txt")
@@ -359,7 +369,7 @@ gs7 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
-             dist2airports + dist2ports,
+             logdist2airports + logdist2ports,
            data = gridYearsummermod, 
            family = binomial, cluster=cl)
   sink("GAM_summer_model7_summary_binomial.txt")
@@ -373,7 +383,7 @@ gs8 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
-             dist2airports + dist2populated_places,
+             logdist2airports + logdist2populated_places,
            data = gridYearsummermod, 
            family = binomial, cluster=cl)
   sink("GAM_summer_model8_summary_binomial.txt")
@@ -387,7 +397,7 @@ gs9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength + 
-             dist2ports + dist2populated_places,
+             logdist2ports + logdist2populated_places,
            data = gridYearsummermod, 
            family = binomial, cluster=cl)
   sink("GAM_summer_model9_summary_binomial_noocean.txt")
@@ -403,7 +413,7 @@ gs10 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength + 
-               dist2road + dist2populated_places,
+               logdist2road + logdist2populated_places,
              data = gridYearsummermod, 
              family = binomial, cluster=cl)
   sink("GAM_summer_model10_summary_binomial.txt")
@@ -665,12 +675,12 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   sink()
   dev.off()
   
-#Add assessibility variables
+#Add logged assessibility variables
 gw2 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
-               dist2road,
+               logdist2road,
              data = gridYearwintermod, 
              family = binomial, cluster=cl)
   sink("GAM_winter_model2_summary_binomial.txt")
@@ -684,7 +694,7 @@ gw3 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
-               dist2airports,
+               logdist2airports,
              data = gridYearwintermod,
              family = binomial, cluster=cl)
   sink("GAM_winter_model3_summary_binomial.txt")
@@ -698,7 +708,7 @@ gw4 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
-               dist2populated_places,
+               logdist2populated_places,
              data = gridYearwintermod, 
              family = binomial, cluster=cl)
   sink("GAM_winter_model4_summary_binomial.txt")
@@ -712,7 +722,7 @@ gw5 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
-               dist2ports,
+               logdist2ports,
              data = gridYearwintermod, 
              family = binomial, cluster=cl)
   sink("GAM_winter_model5_summary_binomial.txt")
@@ -729,7 +739,7 @@ gw6 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
-               dist2airports + dist2road,
+               logdist2airports + logdist2road,
              data = gridYearwintermod, 
              family = binomial, cluster=cl)
   sink("GAM_winter_model6_summary_binomial.txt")
@@ -743,7 +753,7 @@ gw7 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
-               dist2airports + dist2ports,
+               logdist2airports + logdist2ports,
              data = gridYearwintermod, 
              family = binomial, cluster=cl)
   sink("GAM_winter_model7_summary_binomial.txt")
@@ -757,7 +767,7 @@ gw7 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
-               dist2airports + dist2populated_places,
+               logdist2airports + logdist2populated_places,
              data = gridYearwintermod, 
              family = binomial, cluster=cl)
   sink("GAM_winter_model8_summary_binomial.txt")
@@ -771,7 +781,7 @@ gw9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength + 
-               dist2ports + dist2populated_places,
+               logdist2ports + logdist2populated_places,
              data = gridYearwintermod, 
              family = binomial, cluster=cl)
   sink("GAM_winter_model9_summary_binomial_noocean.txt")
@@ -787,7 +797,7 @@ gw9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
                 country +
                 PA +
                 sqrtroadlength + 
-                dist2road + dist2populated_places,
+                logdist2road + logdist2populated_places,
               data = gridYearwintermod, 
               family = binomial, cluster=cl)
   sink("GAM_winter_model10_summary_binomial.txt")
