@@ -872,3 +872,4 @@ dev.off()
 sink() 
 
 ###END
+if (!is.null(cl)) stopCluster(cl)
