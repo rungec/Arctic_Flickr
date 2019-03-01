@@ -79,6 +79,7 @@ g1 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   tiff("GAM_summer_model1_fit_binomial.tiff", width=7, height=7, units='in', res=300, compression="lzw")
   par(mfrow=c(2,2))
   gam.check(g1)
+  dev.off()
   sink()
   
   tiff("GAM_summer_model1_plot_residuals_vs_distancevars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
@@ -166,6 +167,7 @@ print(paste0("AIC ", AIC(gs)))
 tiff("GAM_summer_model1s_fit_binomial_smoothedvars.tiff", width=7, height=7, units='in', res=300, compression="lzw")
 par(mfrow=c(2,2))
 gam.check(gs)
+dev.off()
 sink()
 
 #Add a smoother to the logged accessibility variables
@@ -187,6 +189,7 @@ print(paste0("AIC ", AIC(gs1)))
 tiff("GAM_summer_model11s_fit_binomial_logvars_smoothedvars.tiff", width=7, height=7, units='in', res=300, compression="lzw")
 par(mfrow=c(2,2))
 gam.check(gs1)
+dev.off()
 sink()
 
 #increase the k value (adds more kinks in the smooth)  
@@ -229,7 +232,7 @@ gs11b <- gam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
 gs0 <- bam(PUD_pa ~ sqrtroadlength,
             data = gridYearsummermod,  
             family = binomial, cluster=cl)
-  anova(gs0a)
+  anova(gs0)
   sink("GAM_summer_model0_summary_binomial.txt")
   print(anova(gs0))
   print(summary(gs0))
@@ -237,8 +240,8 @@ gs0 <- bam(PUD_pa ~ sqrtroadlength,
   tiff("GAM_summer_model0_fit_binomial.tiff", width=7, height=7, units='in', res=300, compression="lzw")
   par(mfrow=c(2,2))
   gam.check(gs0)
+  dev.off()
   sink()
-  plot(gs0a)
 
 #add in the smooths for lat and lon
 gs0a <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
@@ -255,6 +258,7 @@ gs0a <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
   tiff("GAM_summer_model0a_fit_binomial.tiff", width=7, height=7, units='in', res=300, compression="lzw")
   par(mfrow=c(2,2))
   gam.check(gs0a)
+  dev.off()
   sink()
 
 #quite parsimonious
@@ -273,6 +277,7 @@ gs0b <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
   tiff("GAM_summer_model0b_fit_binomial.tiff", width=7, height=7, units='in', res=300, compression="lzw")
   par(mfrow=c(2,2))
   gam.check(gs0b)
+  dev.off()
   sink()
 
 #Add assessibility variables
@@ -444,7 +449,7 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   ###WINTER BINOMIAL 
   ###################
   #Model with all the variables
-  g1 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+  gw1 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
               country +
               PA +
               sqrtroadlength + 
@@ -452,40 +457,41 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
             data = gridYearwintermod, 
             family = binomial, cluster=cl)
   sink("GAM_winter_model1_summary_binomial_noocean.txt")
-  print(anova(g1))
-  print(summary(g1))
-  print(paste0("AIC ", AIC(g1)))
+  print(anova(gw1))
+  print(summary(gw1))
+  print(paste0("AIC ", AIC(gw1)))
   tiff("GAM_winter_model1_fit_binomial.tiff", width=7, height=7, units='in', res=300, compression="lzw")
   par(mfrow=c(2,2))
-  gam.check(g1)
+  gam.check(gw1)
+  dev.off()
   sink()
   
   tiff("GAM_winter_model1_plot_residuals_vs_distancevars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(2,3))
-  plot(gridYearwintermod$sqrtroadlength,residuals(g1), cex=0.5, pch=20, xlab="sqrtroadlength")
-  plot(gridYearwintermod$dist2road,residuals(g1), cex=0.5, pch=20, xlab="dist2road")
-  plot(gridYearwintermod$dist2airports,residuals(g1), cex=0.5, pch=20,  xlab="dist2airports")
-  plot(gridYearwintermod$dist2ports,residuals(g1), cex=0.5, pch=20, xlab="dist2ports")
-  plot(gridYearwintermod$dist2populated_places,residuals(g1), cex=0.5, pch=20, xlab="dist2populated_places")
+  plot(gridYearwintermod$sqrtroadlength,residuals(gw1), cex=0.5, pch=20, xlab="sqrtroadlength")
+  plot(gridYearwintermod$dist2road,residuals(gw1), cex=0.5, pch=20, xlab="dist2road")
+  plot(gridYearwintermod$dist2airports,residuals(gw1), cex=0.5, pch=20,  xlab="dist2airports")
+  plot(gridYearwintermod$dist2ports,residuals(gw1), cex=0.5, pch=20, xlab="dist2ports")
+  plot(gridYearwintermod$dist2populated_places,residuals(gw1), cex=0.5, pch=20, xlab="dist2populated_places")
   dev.off()
   
   tiff("GAM_winter__model1_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(1,2))
-  plot(g1, residuals=TRUE)
+  plot(gw1, residuals=TRUE)
   dev.off()
   
   tiff("GAM_winter_model1_plot_variables_pluspredictions_sewithmean_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(1,2))
-  plot(g1, shade=TRUE, seWithMean=TRUE, scale=0)
+  plot(gw1, shade=TRUE, seWithMean=TRUE, scale=0)
   dev.off()
   
   tiff("GAM_winter__model1_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(2,5))
-  plot(g1, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
+  plot(gw1, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
   dev.off()
   
   #Model with all the variables, logged
-  g11 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+  gw11 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength + 
@@ -493,41 +499,42 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
              data = gridYearwintermod, 
              family = binomial, cluster=cl)
   sink("GAM_winter_model11_summary_binomial_logvars.txt")
-  print(anova(g11))
-  print(summary(g11))
-  print(paste0("AIC ", AIC(g11)))
+  print(anova(gw11))
+  print(summary(gw11))
+  print(paste0("AIC ", AIC(gw11)))
   tiff("GAM_winter_model11_fit_binomial_logvars.tiff", width=7, height=7, units='in', res=300, compression="lzw")
   par(mfrow=c(2,2))
-  gam.check(g11)
+  gam.check(gw11)
+  dev.off()
   sink()
   
   tiff("GAM_winter_model11_plot_residuals_vs_logdistancevars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(2,3))
-  plot(gridYearwintermod$sqrtroadlength,residuals(g11), cex=0.5, pch=20, xlab="sqrtroadlength")
-  plot(gridYearwintermod$logdist2road,residuals(g11), cex=0.5, pch=20, xlab="logdist2road")
-  plot(gridYearwintermod$logdist2airports,residuals(g11), cex=0.5, pch=20,  xlab="logdist2airports")
-  plot(gridYearwintermod$logdist2ports,residuals(g11), cex=0.5, pch=20, xlab="logdist2ports")
-  plot(gridYearwintermod$logdist2populated_places,residuals(g11), cex=0.5, pch=20, xlab="logdist2populated_places")
+  plot(gridYearwintermod$sqrtroadlength,residuals(gw11), cex=0.5, pch=20, xlab="sqrtroadlength")
+  plot(gridYearwintermod$logdist2road,residuals(gw11), cex=0.5, pch=20, xlab="logdist2road")
+  plot(gridYearwintermod$logdist2airports,residuals(gw11), cex=0.5, pch=20,  xlab="logdist2airports")
+  plot(gridYearwintermod$logdist2ports,residuals(gw11), cex=0.5, pch=20, xlab="logdist2ports")
+  plot(gridYearwintermod$logdist2populated_places,residuals(gw11), cex=0.5, pch=20, xlab="logdist2populated_places")
   dev.off()
   
   tiff("GAM_winter__model11_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(1,2))
-  plot(g11, residuals=TRUE)
+  plot(gw11, residuals=TRUE)
   dev.off()
   
   tiff("GAM_winter_model11_plot_variables_pluspredictions_sewithmean_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(1,2))
-  plot(g11, shade=TRUE, seWithMean=TRUE, scale=0)
+  plot(gw11, shade=TRUE, seWithMean=TRUE, scale=0)
   dev.off()
   
   tiff("GAM_winter__model11_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(2,5))
-  plot(g11, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
+  plot(gw11, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
   dev.off()
   
   
   #Add a smoother to the accessibility variables
-  gw <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
+  gw1s <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
               country +
               PA +
               s(sqrtroadlength) +
@@ -539,16 +546,17 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
             family = binomial, cluster=cl)
   
   sink("GAM_winter_model1s_summary_binomial_noocean_smoothedvars.txt")
-  print(anova(gw))
-  print(summary(gw))
-  print(paste0("AIC ", AIC(gw)))
+  print(anova(gw1s))
+  print(summary(gw1s))
+  print(paste0("AIC ", AIC(gw1s)))
   tiff("GAM_winter_model1s_fit_binomial_smoothedvars.tiff", width=7, height=7, units='in', res=300, compression="lzw")
   par(mfrow=c(2,2))
-  gam.check(gw)
+  gam.check(gw1s)
+  dev.off()
   sink()
   
   #Add a smoother to the logged accessibility variables
-  gw1 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
+  gw11s <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                s(sqrtroadlength) +
@@ -560,16 +568,17 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
              family = binomial, cluster=cl)
   
   sink("GAM_winter_model11s_summary_binomial_logvars_smoothedvars.txt")
-  print(anova(gw1))
-  print(summary(gw1))
-  print(paste0("AIC ", AIC(gw1)))
+  print(anova(gw11s))
+  print(summary(gw11s))
+  print(paste0("AIC ", AIC(gw11s)))
   tiff("GAM_winter_model11s_fit_binomial_logvars_smoothedvars.tiff", width=7, height=7, units='in', res=300, compression="lzw")
   par(mfrow=c(2,2))
-  gam.check(gw1)
+  gam.check(gw11s)
+  dev.off()
   sink()
   
   #increase the k value (adds more kinks in the smooth)  
-  gwb <- bam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
+  gw1b <- bam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
                country +
                PA +
                dist2road +
@@ -580,11 +589,11 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
              data = gridYearwintermod,  
              family = binomial, cluster=cl) 
   sink("GAM_winter_model1b_summary_binomial_unsmoothedvars_k30.txt")
-  print(anova(gwb))
-  print(summary(gwb))
-  print(paste0("AIC ", AIC(gwb)))
+  print(anova(gw1b))
+  print(summary(gw1b))
+  print(paste0("AIC ", AIC(gw1b)))
   par(mfrow=c(2,2))
-  gam.check(gwb)
+  gam.check(gw1b)
   sink() 
   
   gw11b <- gam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
@@ -608,7 +617,7 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   gw0 <- bam(PUD_pa ~ sqrtroadlength,
              data = gridYearwintermod,  
              family = binomial, cluster=cl)
-  anova(gw0a)
+  anova(gw0)
   sink("GAM_winter_model0_summary_binomial.txt")
   print(anova(gw0))
   print(summary(gw0))
@@ -617,8 +626,8 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gw0)
   sink()
-  plot(gw0a)
-  
+  dev.off()
+
   #add in the smooths for lat and lon
   gw0a <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                 #country +
@@ -634,6 +643,7 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   tiff("GAM_winter_model0a_fit_binomial.tiff", width=7, height=7, units='in', res=300, compression="lzw")
   par(mfrow=c(2,2))
   gam.check(gw0a)
+  dev.off()
   sink()
   
   #quite parsimonious
@@ -653,6 +663,7 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gw0b)
   sink()
+  dev.off()
   
 #Add assessibility variables
 gw2 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
