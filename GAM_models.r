@@ -19,26 +19,35 @@ outdir <- "gam_10km_binomial_noyear" ##EDIT ME
 #########################
 ##SET UP DATA
 #########################
+#this data is PUD for each year, we are only interested in the presence/absence of any photos at any point in time
+#so we summarise
+#PUD = max PUD at any time between 2004 and 2017
+#PUD_pa = 1 if any PUD in that cell in any year
+
 gridYearPUD_models <- gridYearPUD_models %>%
   select(-one_of("geometry")) %>%
   filter(!country %in% c("RUS", "Ocean")) %>%
-  mutate(dist2airports=dist2airports/1000,
-         dist2ports = dist2ports/1000, #converts distances to km
-         dist2populated_places = dist2populated_places/1000,
-         dist2road = dist2road/1000,
-         dist2urban_areas = dist2urban_areas/1000, 
-         sqrtroadlength = sqrt(roadlength/1000),
-         PA = as.factor(PA), 
-         #PUDlog10=log10(PUD+1),
-         country=as.factor(country),
-         year=as.integer(year)) %>%
-    mutate(logdist2airports=if_else(dist2airports<1, 0, log(dist2airports)), #avoids negative log
+  group_by(season, row.id) %>%
+  summarise(PUD=max(PUD), 
+            Latitude = mean(Latitude),
+            Longitude = mean(Longitude),
+            dist2airports=mean(dist2airports)/1000,
+            dist2ports = mean(dist2ports)/1000, #converts distances to km
+            dist2populated_places = mean(dist2populated_places)/1000,
+            dist2road = mean(dist2road)/1000,
+            dist2urban_areas = mean(dist2urban_areas)/1000, 
+            sqrtroadlength = sqrt(mean(roadlength)/1000),
+            PA = first(PA), 
+            #PUDlog10=log10(PUD+1),
+            country=first(country)) %>%
+  mutate(PA=as.factor(PA),
+         country=as.factor(country), 
+         logdist2airports=if_else(dist2airports<1, 0, log(dist2airports)), #avoids negative log
          logdist2ports = if_else(dist2ports<1, 0, log(dist2ports)),
          logdist2populated_places = if_else(dist2populated_places<1, 0, log(dist2populated_places)),
          logdist2road = if_else(dist2road<1, 0, log(dist2road))) 
 #set norway as the reference level
 gridYearPUD_models <- within(gridYearPUD_models, country <- relevel(country, ref = "NOR"))
-
 
 #########################
 ##MODELS
