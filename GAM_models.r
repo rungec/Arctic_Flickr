@@ -7,10 +7,10 @@ require(lubridate)
 require(mgcv)
 
 
-wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model_and_footprint/input/"
-setwd(wd)
-#wd <- paste0(getwd(), "/Documents")
+#wd <- "D:/Box Sync/Arctic/CONNECT/Paper_3_Flickr/Analysis/model_and_footprint/input/"
 #setwd(wd)
+wd <- paste0(getwd(), "/Documents")
+setwd(wd)
 
 gridYearPUD_models <- readRDS("gridYearPUD_models10000_m.Rdata")
 
@@ -19,35 +19,31 @@ outdir <- "gam_10km_binomial_noyear" ##EDIT ME
 #########################
 ##SET UP DATA
 #########################
-#this data is PUD for each year, we are only interested in the presence/absence of any photos at any point in time
-#so we summarise
-#PUD = max PUD at any time between 2004 and 2017
-#PUD_pa = 1 if any PUD in that cell in any year
-
 gridYearPUD_models <- gridYearPUD_models %>%
   select(-one_of("geometry")) %>%
   filter(!country %in% c("RUS", "Ocean")) %>%
   group_by(season, row.id) %>%
   summarise(PUD=max(PUD), 
-            Latitude = mean(Latitude),
-            Longitude = mean(Longitude),
-            dist2airports=mean(dist2airports)/1000,
-            dist2ports = mean(dist2ports)/1000, #converts distances to km
-            dist2populated_places = mean(dist2populated_places)/1000,
-            dist2road = mean(dist2road)/1000,
-            dist2urban_areas = mean(dist2urban_areas)/1000, 
-            sqrtroadlength = sqrt(mean(roadlength)/1000),
-            PA = first(PA), 
-            #PUDlog10=log10(PUD+1),
-            country=first(country)) %>%
-  mutate(PA=as.factor(PA),
-         country=as.factor(country), 
-         logdist2airports=if_else(dist2airports<1, 0, log(dist2airports)), #avoids negative log
+          Latitude = mean(Latitude),
+          Longitude = mean(Longitude),
+          dist2airports=mean(dist2airports)/1000,
+         dist2ports = mean(dist2ports)/1000, #converts distances to km
+         dist2populated_places = mean(dist2populated_places)/1000,
+         dist2road = mean(dist2road)/1000,
+         dist2urban_areas = mean(dist2urban_areas)/1000, 
+         sqrtroadlength = sqrt(mean(roadlength)/1000),
+         PA = first(PA), 
+         #PUDlog10=log10(PUD+1),
+         country=first(country)) %>%
+    mutate(PA=as.factor(PA),
+           country=as.factor(country), 
+           logdist2airports=if_else(dist2airports<1, 0, log(dist2airports)), #avoids negative log
          logdist2ports = if_else(dist2ports<1, 0, log(dist2ports)),
          logdist2populated_places = if_else(dist2populated_places<1, 0, log(dist2populated_places)),
          logdist2road = if_else(dist2road<1, 0, log(dist2road))) 
 #set norway as the reference level
 gridYearPUD_models <- within(gridYearPUD_models, country <- relevel(country, ref = "NOR"))
+
 
 #########################
 ##MODELS
@@ -65,7 +61,7 @@ gridYearwintermod <- gridYearPUD_models %>%
 
 ###set up cluster
 require(parallel)  
-nc <- 6   ## cluster size
+nc <- 8   ## cluster size
 if (detectCores()>1) { 
   cl <- makeCluster(nc) 
 } else cl <- NULL
@@ -74,7 +70,7 @@ if (detectCores()>1) {
 ###SUMMER BINOMIAL 
 ###################
 #Model with all the variables
-g1 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+g1 <- bam(PUD_pa ~ s(Latitude) + s(Longitude) +
              country +
              PA +
              sqrtroadlength + 
@@ -100,7 +96,7 @@ g1 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   plot(gridYearsummermod$dist2populated_places,residuals(g1), cex=0.5, pch=20, xlab="dist2populated_places")
   dev.off()
   
-  tiff("GAM_summer__model1_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  tiff("GAM_summer_model1_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(1,2))
   plot(g1, residuals=TRUE)
   dev.off()
@@ -110,13 +106,13 @@ g1 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   plot(g1, shade=TRUE, seWithMean=TRUE, scale=0)
   dev.off()
   
-  tiff("GAM_summer__model1_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  tiff("GAM_summer_model1_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(2,5))
   plot(g1, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
   dev.off()
 
 #Model with all the variables, logged
-g11 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+g11 <- bam(PUD_pa ~ s(Latitude) + s(Longitude) +
             country +
             PA +
             sqrtroadlength + 
@@ -141,7 +137,7 @@ sink()
   plot(gridYearsummermod$logdist2populated_places,residuals(g11), cex=0.5, pch=20, xlab="logdist2populated_places")
   dev.off()
   
-  tiff("GAM_summer__model11_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  tiff("GAM_summer_model11_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(1,2))
   plot(g11, residuals=TRUE)
   dev.off()
@@ -151,14 +147,14 @@ sink()
   plot(g11, shade=TRUE, seWithMean=TRUE, scale=0)
   dev.off()
   
-  tiff("GAM_summer__model11_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  tiff("GAM_summer_model11_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(2,5))
   plot(g11, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
   dev.off()
 
 
 #Add a smoother to the accessibility variables
-gs <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gs <- bam(PUD_pa ~ s(Latitude) + s(Longitude) +
             country +
             PA +
             s(sqrtroadlength) +
@@ -179,7 +175,7 @@ gam.check(gs)
 dev.off()
 sink()
 
-tiff("GAM_summer__model1s_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+tiff("GAM_summer_model1s_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
 par(mfrow=c(2,5))
 plot(gs, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
 dev.off()
@@ -206,7 +202,7 @@ gam.check(gs1)
 dev.off()
 sink()
 
-tiff("GAM_summer__model11s_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+tiff("GAM_summer_model11s_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
 par(mfrow=c(2,5))
 plot(gs1, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
 dev.off()
@@ -230,7 +226,7 @@ gsb <- bam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
   gam.check(gsb)
   sink() 
 
-gs11b <- gam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
+gs11b <- bam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
                country +
                PA +
                sqrtroadlength + 
@@ -360,7 +356,7 @@ gs5 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
 
 
 #add 2 variables
-gs6 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gs6 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
@@ -374,7 +370,7 @@ gs6 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gs6)
   sink()
-gs7 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gs7 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
@@ -388,7 +384,7 @@ gs7 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gs7)
   sink()
-gs8 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gs8 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength +
@@ -402,7 +398,7 @@ gs8 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gs8)
   sink()
-gs9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gs9 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
              country +
              PA +
              sqrtroadlength + 
@@ -418,7 +414,7 @@ gs9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   gam.check(gs9)
   sink()
   
-gs10 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gs10 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength + 
@@ -434,7 +430,7 @@ gs10 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   sink()
   
 #drop variable from model with logged accessibility variables
-gs12 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gs12 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                 country +
                 PA +
                 #sqrtroadlength + 
@@ -448,7 +444,7 @@ gs12 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gs12)
   sink()
-gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gs13 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                 country +
                 PA +
                 sqrtroadlength + 
@@ -462,13 +458,27 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gs13)
   sink()
+gs15 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
+                country +
+                PA +
+                sqrtroadlength + 
+                logdist2airports + logdist2ports + logdist2populated_places,
+              data = gridYearsummermod, 
+              family = binomial, cluster=cl)
+  sink("GAM_summer_model15_summary_binomial_logvars.txt")
+  print(anova(gs15))
+  print(summary(gs15))
+  print(paste0("AIC ", AIC(gs15)))
+  par(mfrow=c(2,2))
+  gam.check(gs15)
+  sink()
 
 
   ###################
   ###WINTER BINOMIAL 
   ###################
   #Model with all the variables
-  gw1 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+  gw1 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
               country +
               PA +
               sqrtroadlength + 
@@ -494,7 +504,7 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   plot(gridYearwintermod$dist2populated_places,residuals(gw1), cex=0.5, pch=20, xlab="dist2populated_places")
   dev.off()
   
-  tiff("GAM_winter__model1_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  tiff("GAM_winter_model1_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(1,2))
   plot(gw1, residuals=TRUE)
   dev.off()
@@ -504,13 +514,13 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   plot(gw1, shade=TRUE, seWithMean=TRUE, scale=0)
   dev.off()
   
-  tiff("GAM_winter__model1_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  tiff("GAM_winter_model1_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(2,5))
   plot(gw1, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
   dev.off()
   
   #Model with all the variables, logged
-  gw11 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+  gw11 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength + 
@@ -536,7 +546,7 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   plot(gridYearwintermod$logdist2populated_places,residuals(gw11), cex=0.5, pch=20, xlab="logdist2populated_places")
   dev.off()
   
-  tiff("GAM_winter__model11_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  tiff("GAM_winter_model11_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(1,2))
   plot(gw11, residuals=TRUE)
   dev.off()
@@ -546,7 +556,7 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   plot(gw11, shade=TRUE, seWithMean=TRUE, scale=0)
   dev.off()
   
-  tiff("GAM_winter__model11_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  tiff("GAM_winter_model11_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
   par(mfrow=c(2,5))
   plot(gw11, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
   dev.off()
@@ -596,6 +606,21 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   dev.off()
   sink()
   
+  tiff("GAM_winter_model11s_plot_residuals_vs_logdistancevars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  par(mfrow=c(2,3))
+  plot(gridYearwintermod$sqrtroadlength,residuals(gw11s), cex=0.5, pch=20, xlab="sqrtroadlength")
+  plot(gridYearwintermod$logdist2road,residuals(gw11s), cex=0.5, pch=20, xlab="logdist2road")
+  plot(gridYearwintermod$logdist2airports,residuals(gw11s), cex=0.5, pch=20,  xlab="logdist2airports")
+  plot(gridYearwintermod$logdist2ports,residuals(gw11s), cex=0.5, pch=20, xlab="logdist2ports")
+  plot(gridYearwintermod$logdist2populated_places,residuals(gw11s), cex=0.5, pch=20, xlab="logdist2populated_places")
+  dev.off()
+  
+  tiff("GAM_winter_model11s_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  par(mfrow=c(2,5))
+  plot(gw11s, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
+  dev.off()
+  
+  
   #increase the k value (adds more kinks in the smooth)  
   gw1b <- bam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
                country +
@@ -615,7 +640,7 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   gam.check(gw1b)
   sink() 
   
-  gw11b <- gam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
+  gw11b <- bam(PUD_pa ~ s(Latitude, k=30) + s(Longitude, k=30)+
                  country +
                  PA +
                  sqrtroadlength + 
@@ -631,6 +656,48 @@ gs13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   gam.check(gw11b)
   dev.off()
   sink()
+  
+  gw11c <- bam(PUD_pa ~ s(Latitude, k=20) + s(Longitude, k=20)+
+                 country +
+                 PA +
+                 sqrtroadlength + 
+                 logdist2road + logdist2airports + logdist2ports + logdist2populated_places,
+               data = gridYearwintermod, 
+               family = binomial, cluster=cl)
+  sink("GAM_winter_model11c_summary_binomial_logvars_k20.txt")
+  print(anova(gw11c))
+  print(summary(gw11c))
+  print(paste0("AIC ", AIC(gw11c)))
+  tiff("GAM_winter_model11c_fit_binomial_logvars_k20.tiff", width=7, height=7, units='in', res=300, compression="lzw")
+  par(mfrow=c(2,2))
+  gam.check(gw11c)
+  dev.off()
+  sink()
+  
+  tiff("GAM_winter_model11c_plot_residuals_vs_logdistancevars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  par(mfrow=c(2,3))
+  plot(gridYearwintermod$sqrtroadlength,residuals(gw11c), cex=0.5, pch=20, xlab="sqrtroadlength")
+  plot(gridYearwintermod$logdist2road,residuals(gw11c), cex=0.5, pch=20, xlab="logdist2road")
+  plot(gridYearwintermod$logdist2airports,residuals(gw11c), cex=0.5, pch=20,  xlab="logdist2airports")
+  plot(gridYearwintermod$logdist2ports,residuals(gw11c), cex=0.5, pch=20, xlab="logdist2ports")
+  plot(gridYearwintermod$logdist2populated_places,residuals(gw11c), cex=0.5, pch=20, xlab="logdist2populated_places")
+  dev.off()
+  
+  tiff("GAM_winter_model11c_plot_residuals_vs_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  par(mfrow=c(1,2))
+  plot(gw11c, residuals=TRUE)
+  dev.off()
+  
+  tiff("GAM_winter_model11c_plot_variables_pluspredictions_sewithmean_latlon.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  par(mfrow=c(1,2))
+  plot(gw11c, shade=TRUE, seWithMean=TRUE, scale=0)
+  dev.off()
+  
+  tiff("GAM_winter_model11c_plot_variables_pluspredictions_sewithmean_allvars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+  par(mfrow=c(2,5))
+  plot(gw11c, shade=TRUE, seWithMean=TRUE, scale=0, all.terms=TRUE)
+  dev.off()
+  
   
   #most parsimonious
   gw0 <- bam(PUD_pa ~ sqrtroadlength,
@@ -744,7 +811,7 @@ gw5 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
   sink()
  
 #add 2 variables
-gw6 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gw6 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
@@ -758,7 +825,7 @@ gw6 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gw6)
   sink()
-gw7 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gw7 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
@@ -772,7 +839,7 @@ gw7 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gw7)
   sink()
- gw8 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+ gw8 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength +
@@ -786,7 +853,7 @@ gw7 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gw8)
   sink()
-gw9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+gw9 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                country +
                PA +
                sqrtroadlength + 
@@ -802,7 +869,7 @@ gw9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   gam.check(gw9)
   sink()
   
- gw10 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+ gw10 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                 country +
                 PA +
                 sqrtroadlength + 
@@ -818,7 +885,7 @@ gw9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   sink()
   
   #drop variables from model with logged accessibility variables
- gw12 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+ gw12 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                 country +
                 PA +
                 #sqrtroadlength + 
@@ -832,7 +899,7 @@ gw9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
   par(mfrow=c(2,2))
   gam.check(gw12)
   sink()
- gw13 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
+ gw13 <- bam(PUD_pa ~ s(Latitude) + s(Longitude)+
                 country +
                 PA +
                 sqrtroadlength + 
@@ -852,7 +919,7 @@ gw9 <- gam(PUD_pa ~ s(Latitude) + s(Longitude)+
 #MODELS without PA
 ###################
 
-gw14 <- bam(PUD_pa ~ s(Latitude, k=20) + s(Longitude, k=20) +
+gw14 <- bam(PUD_pa ~ s(Latitude) + s(Longitude) +
              country +
              logdist2road +
              logdist2airports +
@@ -871,7 +938,17 @@ gam.check(gw14)
 dev.off()
 sink() 
 
-gs14 <- bam(PUD_pa ~ s(Latitude, k=20) + s(Longitude, k=20) +
+
+tiff("GAM_winter_model14_plot_residuals_vs_logdistancevars.tiff", width=14, height=7, units='in', res=400, compression="lzw")
+par(mfrow=c(2,3))
+plot(gridYearwintermod$sqrtroadlength,residuals(gw14), cex=0.5, pch=20, xlab="sqrtroadlength")
+plot(gridYearwintermod$logdist2road,residuals(gw14), cex=0.5, pch=20, xlab="logdist2road")
+plot(gridYearwintermod$logdist2airports,residuals(gw14), cex=0.5, pch=20,  xlab="logdist2airports")
+plot(gridYearwintermod$logdist2ports,residuals(gw14), cex=0.5, pch=20, xlab="logdist2ports")
+plot(gridYearwintermod$logdist2populated_places,residuals(gw14), cex=0.5, pch=20, xlab="logdist2populated_places")
+dev.off()
+
+gs14 <- bam(PUD_pa ~ s(Latitude) + s(Longitude) +
              country +
              logdist2road +
              logdist2airports +
@@ -888,6 +965,99 @@ tiff("GAM_summer_model14_fit_binomial_logvars_noPA.tiff", width=7, height=7, uni
 par(mfrow=c(2,2))
 gam.check(gs14)
 dev.off()
+sink() 
+
+
+###################
+#MODELS without PA and ports
+###################
+
+gw15 <- bam(PUD_pa ~ s(Latitude) + s(Longitude) +
+              country +
+              logdist2road +
+              logdist2airports +
+              logdist2populated_places +
+              sqrtroadlength,
+            data = gridYearwintermod,  
+            family = binomial, cluster=cl) 
+sink("GAM_winter_model15_summary_binomial_logvars_noPA.txt")
+print(anova(gw15))
+print(summary(gw15))
+print(paste0("AIC ", AIC(gw15)))
+tiff("GAM_winter_model15_fit_binomial_logvarsnoPAnoports.tiff", width=7, height=7, units='in', res=300, compression="lzw")
+par(mfrow=c(2,2))
+gam.check(gw15)
+dev.off()
+sink() 
+
+###################
+#MODELS with k20
+###################
+gw13c <- bam(PUD_pa ~ s(Latitude, k=20) + s(Longitude, k=20)+
+              country +
+              PA +
+              sqrtroadlength + 
+              logdist2road + logdist2airports + logdist2populated_places,
+            data = gridYearwintermod, 
+            family = binomial, cluster=cl)
+sink("GAM_winter_model13c_summary_binomial_logvars_k20.txt")
+print(anova(gw13c))
+print(summary(gw13c))
+print(paste0("AIC ", AIC(gw13c)))
+par(mfrow=c(2,2))
+gam.check(gw13c)
+sink()
+
+gw14c <- bam(PUD_pa ~ s(Latitude, k=20) + s(Longitude, k=20) +
+              country +
+              logdist2road +
+              logdist2airports +
+              logdist2ports +
+              logdist2populated_places +
+              sqrtroadlength,
+            data = gridYearwintermod,  
+            family = binomial, cluster=cl) 
+sink("GAM_winter_model14c_summary_binomial_logvars_noPA_k20.txt")
+print(anova(gw14c))
+print(summary(gw14c))
+print(paste0("AIC ", AIC(gw14c)))
+tiff("GAM_winter_model14c_fit_binomial_logvarsnoPA_k20.tiff", width=7, height=7, units='in', res=300, compression="lzw")
+par(mfrow=c(2,2))
+gam.check(gw14c)
+dev.off()
+sink() 
+
+gw15c <- bam(PUD_pa ~ s(Latitude, k=20) + s(Longitude, k=20) +
+              country +
+              logdist2road +
+              logdist2airports +
+              logdist2populated_places +
+              sqrtroadlength,
+            data = gridYearwintermod,  
+            family = binomial, cluster=cl) 
+sink("GAM_winter_model15c_summary_binomial_logvars_noPA_k20.txt")
+print(anova(gw15c))
+print(summary(gw15c))
+print(paste0("AIC ", AIC(gw15c)))
+tiff("GAM_winter_model15c_fit_binomial_logvarsnoPAnoports_k20.tiff", width=7, height=7, units='in', res=300, compression="lzw")
+par(mfrow=c(2,2))
+gam.check(gw15c)
+dev.off()
+sink() 
+
+##########################
+#Compare models
+sink("GAM_winter_model_comparison.txt")
+print(anova(gw11, gw13, test="Chisq"))
+print(anova(gw11, gw14, test="Chisq"))
+print(anova(gw11, gw15, test="Chisq"))
+print(anova(gw14, gw15, test="Chisq"))
+sink() 
+
+sink("GAM_summer_model_comparison.txt")
+print(anova(g11, gs13, test="Chisq"))
+print(anova(g11, gs14, test="Chisq"))
+print(anova(g11, gs15, test="Chisq"))
 sink() 
 
 ###END
