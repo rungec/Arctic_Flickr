@@ -62,3 +62,17 @@ PUD_grid <- function(flickrrecords, time, grid){
 gridYearPUD_models <- PUD_grid(flickramap, flickramap$yearseason, grid_models) 
 saveRDS(gridYearPUD_models,file = paste0("gridYearPUD_models",10000,"_m.Rdata"))
 rm(gridYearPUD_models)
+
+#how many pud in each grid cell in each year-season, for the models of whether nature photos are more likely to be taken inside or outside protected areas
+#index rows where 'biotic_' is in any of the escode columns
+indx <- flickramap %>% st_set_geometry(NULL) %>%
+  select(starts_with("escode")) %>%  #select escode columns
+  mutate_all(funs(grepl("^biotic_", .))) %>% #return df of TRUE FALSE
+  rowSums > 0 #returns rows where TRUE in any column
+flickrnature <- flickramap %>% filter(indx) #select biotic nature photos
+
+#PUD of nature photos
+gridYearPUD_models_nature <- PUD_grid(flickrnature, flickrnature$yearseason, grid_models) 
+saveRDS(gridYearPUD_models_nature,file = paste0("gridYearPUD_models",10000,"_m_bioticnature.Rdata"))
+rm(gridYearPUD_models_nature)
+
