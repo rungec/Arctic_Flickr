@@ -136,14 +136,16 @@ paphotos_noeez <- merge(paphotos_noeez, perc_inPAs, by.x='region', by.y = 'Count
 
 #plot percent of photos inside protected areas
 p1 <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
+  coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region))) +
   geom_bar(stat='identity', position = 'dodge') +
   geom_errorbar(aes(ymin=Percent_inPAs, ymax=Percent_inPAs), color='grey40', lty='solid', lwd=0.75) +
   ylab("Photos inside PAs (%)") +
-  theme_minimal(16) +
-  theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
-        axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
+  theme_minimal(20) +
+  theme(legend.position="bottom", panel.grid.major.y=element_blank(), 
+        #axis.text.x=element_text(angle=90,hjust=1), 
+        axis.title.y=element_blank(), axis.text.y=element_blank()) +
   #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
-  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
+  scale_fill_manual(values = c("grey80", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -152,20 +154,22 @@ p1 <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
                       title.position = 'top',
                       title.hjust = 0.5, label.hjust = 1, nrow = 1,
                       byrow = T, # also the guide needs to be reversed
-                      reverse = F, label.position = "bottom"))  
-    #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
+                      reverse = T, label.position = "bottom"))  
+    
 ggsave(filename="Perc_photos_inPAs_byregion_esgroup_WDPACAFF.png", p1)
 ggsave(filename="Perc_photos_inPAs_byregion_esgroup_WDPACAFF.pdf", p1)
 
 #plot number of users taking photos inside protected areas
 p2 <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
+  coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region))) +
   geom_bar(stat='identity', position = 'dodge') +
   ylab("Users taking photos inside PAs (%)") +
-  theme_minimal(16) +
-  theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
-        axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
+  theme_minimal(20) +
+  theme(legend.position="bottom", panel.grid.major.y=element_blank(), 
+        #axis.text.x=element_text(angle=90,hjust=1), 
+        axis.title.y=element_blank(), axis.text.y=element_blank()) +
   #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
-  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
+  scale_fill_manual(values = c("grey80", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -174,8 +178,7 @@ p2 <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
                       title.position = 'top',
                       title.hjust = 0.5, label.hjust = 1, nrow = 1,
                       byrow = T, # also the guide needs to be reversed
-                      reverse = F, label.position = "bottom"))  
-    #coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
+                      reverse = T, label.position = "bottom"))
 ggsave(filename="Perc_users_inPAs_byregion_esgroup_WDPACAFF.png", p2)
 ggsave(filename="Perc_users_inPAs_byregion_esgroup_WDPACAFF.pdf", p2)
 
@@ -190,13 +193,15 @@ photosbyregion[, c("region", "esgroup")] <- lapply(photosbyregion[, c("region", 
 
 #plot number of photos in each region, by esgroup
 p3 <- ggplot(photosbyregion, aes(x=region, y=nphotos/100000, group=esgroup, fill=esgroup)) +
+  coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region))) +
   geom_bar(stat='identity', position = 'dodge') +
   ylab(expression(Number~of~photos~(x~10^{5}))) +
-  theme_minimal(16) +
-  theme(legend.position="bottom", panel.grid.major.x=element_blank(), 
-        axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank()) +
+  theme_minimal(20) +
+  theme(legend.position="bottom", panel.grid.major.y=element_blank(),  
+        #axis.text.x=element_text(angle=90,hjust=1), 
+        axis.title.y=element_blank()) +
   #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
-  scale_fill_manual(values = c("grey70", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
+  scale_fill_manual(values = c("grey80", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -205,8 +210,7 @@ p3 <- ggplot(photosbyregion, aes(x=region, y=nphotos/100000, group=esgroup, fill
                       title.position = 'top',
                       title.hjust = 0.5, label.hjust = 1, nrow = 1,
                       byrow = T, # also the guide needs to be reversed
-                      reverse = F, label.position = "bottom"))  
-#coord_flip() + scale_x_discrete(limits=rev(levels(paphotos_noeez$region)))
+                      reverse = T, label.position = "bottom")) 
 ggsave(filename="Num_photos_byregion_esgroup.png", p3)
 ggsave(filename="Num_photos_byregion_esgroup.pdf", p3)
 
@@ -215,6 +219,6 @@ ggsave(filename="Num_photos_byregion_esgroup.pdf", p3)
 #COMBINE ALL THREE PLOTS
 require(ggpubr)
 
-pout <- ggarrange(p3, p2, p1, labels=c("A", "B", "C"), ncol=3, nrow=1, common.legend = TRUE, legend="bottom", font.label = list(size = 18, face='plain'))
-ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs.png", width=1280, height=480)
-ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs.pdf", width=16, height=7)
+pout <- ggarrange(p3, p2, p1, labels=c("A", "B", "C"), ncol=3, nrow=1, common.legend = TRUE, legend="bottom", hjust=0, font.label = list(size = 18, face='plain'))
+ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs_vertical.png", width=1280, height=480)
+ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs_vertical.pdf", width=16, height=7)
