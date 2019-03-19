@@ -11,13 +11,6 @@ require(tidyverse)
 require(irr)
 
 ##################
-### set up functions
-findfun <- function(data, word) {
-  gwcols <- grep("googletag", names(data), value=TRUE)
-  data_gw <- data %>% filter_at(gwcols, any_vars(. %in% word)) #pull the 'word' row
-  return(data_gw)
-}
-
 #set up function to reclassify escodes into esgroup
 escode_to_esgroup <- function(col) {
   sapply(col, function(x){
@@ -43,6 +36,7 @@ valdf[is.na(valdf)] <- 0
 
 # drop rows where photos were deleted
 table(valdf$photo_deleted) #how many rows deleted?
+valdf %>% group_by(photo_deleted) %>% summarise(n=n_distinct(id)) #how many unique photos were analysed?
 valdf <- valdf %>% filter(photo_deleted==0)
 
 ##################
@@ -69,7 +63,7 @@ Fleisstbl <- sapply(1:length(esgroups), function(x){
                     "percent_in_cat_RD"=100*table(dat[,3])[2]/nrow(dat),
                     "percent_in_cat_VH"=100*table(dat[,4])[2]/nrow(dat),
                     "perc_agree"=a$value,
-                    "kappa"=k$value, 
+                    "fleiss_kappa"=k$value, 
                     "z_stat"=k$statistic,
                     "p_value"=k$p.value, stringsAsFactors = FALSE)
   return(oup)
@@ -91,7 +85,6 @@ iotatbl <- lapply(1:length(esgroups), function(x){
 sink("Intercoder_reliability_iota.txt")
 print("Iota between manual coders, all esgroups")
 print(iota(iotatbl))
-print()
 print("Iota between manual coders, without biotic_plant")
 print(iota(iotatbl[-5]))
 sink()
@@ -104,6 +97,7 @@ sink()
 # merge manual classification with google classification
 valdfGV <- left_join(valdf, codetbl, by="id")
 valdfGV[is.na(valdfGV)] <- 0
+#valdfGV <- valdfGV[valdf$coder!="VH", ]
 
 #select the 20 escode columns
 escols <- grep("escode", names(valdfGV), value=TRUE) #pull the columns named 'escode'
@@ -124,6 +118,9 @@ valdf_wide <- valdfGV_long %>%
                 mutate(value=1) %>% #add acolumn where value=1 if escode is present              
                 spread(esgroup_gv, value, fill=0) %>%
                 right_join(valdfM_wide, by="id")
+
+###IF YOU WANT TO KEEP ONLY THE FIRST ROW for each photo (eg 2645 photos instead of 3944 which contains the 315 duplicated set of photos)
+#valdf_wide <- valdf_wide %>% distinct(id, .keep_all=TRUE)
 
 ### Calculate IRR between each ES
 esgrouplist <- data.frame(google_col=c("abiotic", "biotic", "biotic_wildlife", "biotic_bird", "biotic_plant", "no", "pet"),
@@ -160,10 +157,8 @@ iotadf <- lapply(1:nrow(esgrouplist), function(x){
 sink("Intercoder_reliability_iota.txt", append=TRUE)
 print("Iota for google vs manual, all esgroups")
 print(iota(iotadf))
-print()
 print("Iota for google vs manual, without non nature")
 print(iota(iotadf[-6]))
 sink()
-
 
 ####END
