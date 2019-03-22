@@ -108,6 +108,10 @@ names(codetbl)[grep("googletag", names(codetbl))] <- paste0("escode", 1:20)
 
 #add to flickramap
 flickramap <- merge(flickramap, codetbl[, c("id", grep("escode", names(codetbl), value=TRUE))], by.x="id", by.y="id", all.x=TRUE)
+
+#fix the numtags column
+flickramap <- flickramap %>% mutate(numtags=20-rowSums(is.na( flickramap[, grep("googletag", names(flickramap))]))) %>% select(-numtags2)
+
 save(flickramap, file="D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap.Rdata")
 
 ########################
