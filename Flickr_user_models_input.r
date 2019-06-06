@@ -16,6 +16,22 @@ flickraccess <- flickramap
 rm(flickramap)
 
 #########################
+##SET UP OVERLAP FUNCTION
+#########################
+
+most_overlap <- function(sf1,sf2,column,missing){
+  most <- suppressWarnings(map(st_geometry(sf1),
+                               function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
+                                 st_sf() %>% 
+                                 st_intersection(.,sf2) %>% 
+                                 data.frame() %>% 
+                                 select(column))) %>% 
+    lapply(function(x) ifelse(nrow(x)==0, missing, x)) %>% 
+    unlist()
+  return(most)
+}
+
+#########################
 ##SET UP FLICKR DATA
 #########################
 
@@ -110,32 +126,7 @@ urban_areas <- ne_load(type="urban_areas",
 #link each photo to accessibility data
 
 # 2 country
-flickraccess$NE_country <- st_intersects(flickraccess,countries,"adm0_a3","Ocean")
-
-
-#Elevation (minimum, in 500m intervals)
-elev <- st_intersection(ppgis, elevation) %>% 
-  st_set_geometry(NULL) %>% 
-  select(ID, MINHOEYDE)
-
-ppgis_spatial <- merge(ppgis_spatial, elev, by="ID", all.x=TRUE)
-ppgis_spatial$MINHOEYDE[is.na(ppgis_spatial$MINHOEYDE)] <- 0 #replace elevation for points falling in the ocean as elevation=0
-most_overlap <- function(sf1,sf2,column,missing){
-  most <- suppressWarnings(map(st_geometry(sf1),
-                               function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
-                                 st_sf() %>% 
-                                 st_intersection(.,sf2) %>% 
-                                 mutate(area=st_area(.)) %>%
-                                 filter(area==max(area)) %>% 
-                                 data.frame() %>% 
-                                 select(column))) %>% 
-    lapply(function(x) ifelse(nrow(x)==0, missing, x)) %>% 
-    unlist()
-  return(most)
-}
-
-
-
+flickraccess$NE_country <- most_overlap(flickraccess, countries, "adm0_a3", "Ocean")
 save(flickraccess, file = paste0("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata")) #lets save it just in case
 
 
