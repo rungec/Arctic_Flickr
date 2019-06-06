@@ -1,8 +1,8 @@
 
 require(sf)
 require(tidyverse)
-require(lubridate)
-require(mgcv)
+require(rnaturalearth)
+require(lwgeom)
 
 
 #wd <- "D:/Box Sync/Arctic/Data"
@@ -10,57 +10,10 @@ require(mgcv)
 wd <- paste0(getwd(), "/Documents")
 setwd(wd)
 # flickr data
-#load("Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
 #load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
 load("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
 flickraccess <- flickramap
-
-######################
-##Set up overlap functions
-######################
-
-# create a function to measure proportion of elements of sf1 are covered by sf2
-prop_overlap <- function(sf1,sf2){
-  area <- as.numeric(st_area(sf1))
-  dist <- map(st_geometry(sf1),
-              function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
-                st_intersection(sf2) %>% 
-                st_area() %>% 
-                as.numeric()) %>% 
-    lapply(function(x) ifelse(is.null(x), NA, x)) %>% 
-    lapply(function(x) ifelse(is.na(x), 0, x)) %>%
-    unlist()
-  return(dist/area)
-}
-
-# create a function to measure which elements of sf1 are most covered by elements of sf2
-most_overlap <- function(sf1,sf2,column,missing){
-  most <- suppressWarnings(map(st_geometry(sf1),
-                               function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
-                                 st_sf() %>% 
-                                 st_intersection(.,sf2) %>% 
-                                 mutate(area=st_area(.)) %>%
-                                 filter(area==max(area)) %>% 
-                                 data.frame() %>% 
-                                 select(column))) %>% 
-    lapply(function(x) ifelse(nrow(x)==0, missing, x)) %>% 
-    unlist()
-  return(most)
-}
-
-# create a function to measure the length of sf2 contained in elements of sf1
-length_overlap <- function(sf1,sf2){
-  lengths <- map(st_geometry(sf1),
-                 function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
-                   st_intersection(.,sf2) %>% 
-                   st_combine() %>% 
-                   st_sf() %>% 
-                   mutate(length=as.numeric(sum(st_length(.)))) %>%
-                   data.frame() %>% 
-                   select(length)) %>% 
-    lapply(function(x) ifelse(nrow(x)==0, 0, x)) %>% 
-    unlist()
-}
+rm(flickramap)
 
 #########################
 ##SET UP FLICKR DATA
@@ -118,6 +71,7 @@ countries <- ne_states(returnclass = "sf")  %>%
 
 # Global Roads Inventory Project (GRIP) dataset 
 roads <- st_read("Arctic_roads_GRIP.shp") %>% 
+#roads <- st_read("D:/Box Sync/Arctic/Data/Boundaries/Roads/Arctic_roads_GRIP.shp") %>% 
   st_transform(st_crs(flickraccess)) %>% 
   st_intersection(bb)
 
@@ -156,34 +110,54 @@ urban_areas <- ne_load(type="urban_areas",
 #link each photo to accessibility data
 
 # 2 country
-flickraccess$country <- most_overlap(flickraccess,countries,"adm0_a3","Ocean")
+flickraccess$NE_country <- st_intersects(flickraccess,countries,"adm0_a3","Ocean")
 
-# 3 roads
-flickraccess$roadlength <- length_overlap(flickraccess,roads)
-flickraccess$dist2road <- st_distance(flickraccess,st_combine(roads))
+
+#Elevation (minimum, in 500m intervals)
+elev <- st_intersection(ppgis, elevation) %>% 
+  st_set_geometry(NULL) %>% 
+  select(ID, MINHOEYDE)
+
+ppgis_spatial <- merge(ppgis_spatial, elev, by="ID", all.x=TRUE)
+ppgis_spatial$MINHOEYDE[is.na(ppgis_spatial$MINHOEYDE)] <- 0 #replace elevation for points falling in the ocean as elevation=0
+most_overlap <- function(sf1,sf2,column,missing){
+  most <- suppressWarnings(map(st_geometry(sf1),
+                               function(x) st_sfc(x,crs=st_crs(sf2)) %>% 
+                                 st_sf() %>% 
+                                 st_intersection(.,sf2) %>% 
+                                 mutate(area=st_area(.)) %>%
+                                 filter(area==max(area)) %>% 
+                                 data.frame() %>% 
+                                 select(column))) %>% 
+    lapply(function(x) ifelse(nrow(x)==0, missing, x)) %>% 
+    unlist()
+  return(most)
+}
+
+
+
+save(flickraccess, file = paste0("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata")) #lets save it just in case
+
+
+# 3 Euclidean distance from nearest road
+flickraccess$dist2road <- round(st_distance(flickraccess,st_combine(roads)), 1)
 
 # 4 airports
-flickraccess$airports <- lengths(st_intersects(flickraccess,airports))
-flickraccess$dist2airports <- st_distance(flickraccess,st_combine(airports))
-save(flickraccess, file = paste0("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata")) #just in case
+flickraccess$dist2airports <- round(st_distance(flickraccess,st_combine(airports)), 1)
 
 # 5 ports
-flickraccess$ports <- lengths(st_intersects(flickraccess,ports))
-flickraccess$dist2ports <- st_distance(flickraccess,st_combine(ports))
+flickraccess$dist2ports <- round(st_distance(flickraccess,st_combine(ports)), 1)
 
 # 6 populated places
-flickraccess$populated_places <- lengths(st_intersects(flickraccess,populated_places))
-flickraccess$dist2populated_places <- st_distance(flickraccess,st_combine(populated_places))
+flickraccess$dist2populated_places <- round(st_distance(flickraccess,st_combine(populated_places)), 1)
 
 # 7 urban area
-flickraccess$urban_areas <- prop_overlap(flickraccess,urban_areas)
-flickraccess$dist2urban_areas <- st_distance(flickraccess,st_combine(urban_areas))
-save(flickraccess, file = paste0("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata")) #the next step takes a lot of time, so lets save it just in case
+flickraccess$dist2urban_areas <- round(st_distance(flickraccess,st_combine(urban_areas)), 1)
 
 # 1 protected areas
-#Overlap with protected areas: If there is >20% overlap with PA then we consider that cell as a PA, we justify this because of the halo effect of PAs, people stay just outside PAs where there are accomodations.
-flickraccess$propPA <- prop_overlap(flickraccess,PAbuf)
-flickraccess$PA <- flickraccess$propPA>0.2
+flickraccess$dist2PA <- round(st_distance(flickraccess,st_combine(PAbuf)), 1)
+#we consider it as inside the PA if <1km from the PA
+flickraccess$nearPA <- flickraccess$dist2PA<1000
 
 #check
 head(flickraccess)
