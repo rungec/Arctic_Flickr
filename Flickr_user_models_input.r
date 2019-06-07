@@ -7,7 +7,7 @@ require(lwgeom)
 
 #wd <- "D:/Box Sync/Arctic/Data"
 #setwd(wd)
-wd <- paste0(getwd(), "/Documents")
+wd <- paste0(getwd(), "/Documents/flickr/")
 setwd(wd)
 # flickr data
 #load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusPAs.Rdata")
@@ -58,9 +58,13 @@ flickraccess$wildlifebird_photos <- wildlife_photos
 #Calculate the proportion of a given user's photos that are of wildlife
 wildlife_photo_prop <- flickraccess %>% st_set_geometry(NULL) %>%
   group_by(owner) %>%
-  summarise(wildlife_photo_prop = sum(wildlifebird_photos)/n())
+  summarise(wildlife_photo_prop = round(sum(wildlifebird_photos)/n()), 4)
 flickraccess <- flickraccess %>% 
-  left_join(wildlifebird_photo_prop, by="owner")
+  left_join(wildlife_photo_prop, by="owner")
+
+rm(indx)
+rm(indx2)
+rm(wildlife_photos)
 
 #########################
 ##SET UP ACCESSIBILITY DATA
@@ -125,11 +129,6 @@ urban_areas <- ne_load(type="urban_areas",
 ######################
 #link each photo to accessibility data
 
-# 2 country
-flickraccess$NE_country <- most_overlap(flickraccess, countries, "adm0_a3", "Ocean")
-save(flickraccess, file = paste0("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata")) #lets save it just in case
-
-
 # 3 Euclidean distance from nearest road
 flickraccess$dist2road <- round(st_distance(flickraccess,st_combine(roads)), 1)
 
@@ -148,10 +147,15 @@ flickraccess$dist2urban_areas <- round(st_distance(flickraccess,st_combine(urban
 # 1 protected areas
 flickraccess$dist2PA <- round(st_distance(flickraccess,st_combine(PAbuf)), 1)
 #we consider it as inside the PA if <1km from the PA
-flickraccess$nearPA <- flickraccess$dist2PA<1000
+flickraccess$nearPA <- flickraccess$dist2PA < units::as_units(1000, "m")
+
+save(flickraccess, file = paste0("Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata")) #lets save it just in case
+
+# 2 country
+flickraccess$NE_country <- most_overlap(flickraccess, countries, "adm0_a3", "Ocean")
+save(flickraccess, file = paste0("Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata")) 
 
 #check
-head(flickraccess)
-save(flickraccess, file = paste0("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata"))
+head(flickraccess[, 110:122])
 
 ###END
