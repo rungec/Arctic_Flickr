@@ -19,7 +19,7 @@ setwd(wd)
 load("D:/Box Sync/Arctic/Data/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata")
 #load("flickr/Flickr_Artic_60N_googlelabels_escodes_amap_plusaccessibility.Rdata")
 
-logitTransform <- function(p) { log(p/(1-p)) } #log of the odds ratio
+names(flickraccess[,114:122]) <- c("dist2road", "dist2airports", "dist2ports", "dist2populated_place", "dist2urban_areas", "dist2PA", "NE_country", "nearPA")
 
 #####################
 ###SET UP DATA
@@ -36,24 +36,25 @@ accessdf$dist2urban_areas <- units::drop_units(accessdf$dist2urban_areas)
 accessdf$dist2PA <- units::drop_units(accessdf$dist2PA)
 
 accessdf <- accessdf %>% filter(!NE_country %in% c("RUS", "Ocean")) %>%
-                        mutate(logitwildphotoprop = logitTransform(wildlife_photo_prop),
+                        mutate(sqrtwildphotoprop = sqrt(wildlife_photo_prop),
                                 logdist2road = log(dist2road+1),
                                 logdist2airports = log(dist2airports+1),
                                 logdist2ports = log(dist2ports+1),
                                 logdist2populated_places = log(dist2populated_places+1),
-                                logdist2PA = log(dist2PA+1))
-
+                                logdist2PA = log(dist2PA+1),
+                               owner=factor(owner),
+                               NE_country=factor(NE_country),
+                               nearPA=factor(nearPA))
+                                
 #####################
 ###PLOT DATA
 #####################
-
-
 #check the covariance of the continous variables
 access_cor <- cor(accessdf[, c("dist2road", "dist2airports", "dist2ports", "dist2populated_places", "dist2urban_areas", "dist2PA")], method="pearson")
 png("Variable_correlation_plot.png", width=7, height=7, units="in", res=150)
 corrplot::corrplot.mixed(access_cor, lower.col="black")
 dev.off()
-#We drop dist2urban_areas as it is highly correlated with dist2road
+#dist2urban_areas is highly correlated with dist2road
 
 
 #do they need to be transformed?
@@ -69,24 +70,24 @@ hist(accessdf$dist2PA/1000, breaks=seq(0,10000,10), xlim=c(0,500), main="", xlab
 dev.off()
 
 #make some plots of the distance to road versus wildlife_photo_prop
-p <- ggplot(accessdf, aes(logdist2road, logitwildphotoprop)) +
+p <- ggplot(accessdf, aes(sqrtwildphotoprop, logdist2road)) +
   geom_point() +
-  xlab("Log distance to road (m)") +
-  ylab("Logit photos taken of wildlife per user") +
+  ylab("Log distance to road (m)") +
+  xlab("Sqrt photos taken of wildlife per user") +
   theme_minimal()
-ggsave("Variable_logitwildlife_photo_vs_logdist2road.png", p)
-p <- ggplot(accessdf, aes(dist2road, logitwildphotoprop)) +
+ggsave("Variable_sqrtwildlife_photo_vs_logdist2road.png", p)
+p <- ggplot(accessdf, aes(sqrtwildphotoprop, dist2road)) +
   geom_point() +
-  xlab("Distance to road (m)") +
-  xlim(0,20000) +
-  ylab("Logit photos taken of wildlife per user") +
+  ylab("Distance to road (m)") +
+  ylim(0,20000) +
+  xlab("Sqrt photos taken of wildlife per user") +
   theme_minimal()
-ggsave("Variable_logitwildlife_photo_vs_dist2road.png", p)
-p <- ggplot(accessdf, aes(dist2road, wildlife_photo_prop)) +
+ggsave("Variable_sqrtwildlife_photo_vs_dist2road.png", p)
+p <- ggplot(accessdf, aes(wildlife_photo_prop, dist2road)) +
   geom_point() +
-  xlim(0,5000) +
-  xlab("Distance to road (m)") +
-  ylab("Proportion of photos taken of wildlife") +
+  ylim(0,5000) +
+  ylab("Distance to road (m)") +
+  xlab("Proportion of photos taken of wildlife") +
   theme_minimal()
 ggsave("Variable_wildlife_photo_prop_vs_dist2road.png", p)
 
@@ -94,49 +95,30 @@ ggsave("Variable_wildlife_photo_prop_vs_dist2road.png", p)
 ###RUN MODELS
 #####################
 
-#Full model
-g1 <- lmer(wildlife_photo_prop ~ 
-             dist2road + dist2airports + dist2ports + dist2populated_places + dist2PA +
-             (1|owner), data = accessdf)
 #Full model, log transformed
-g1b <- lmer(logitwildphotoprop ~ 
-             logdist2road + logdist2airports + logdist2ports + logdist2populated_places + logdist2PA +
-             (1|owner), data = accessdf)
-#Full model, logit y
-g1c <- lmer(logitwildphotoprop ~ 
-              dist2road + dist2airports + dist2ports + dist2populated_places + dist2PA +
-             (1|owner), data = accessdf)
-
-plot_model(g1)
-plot_model(g1b)
-plot_model(g1c)
-summary(g1)
-summary(g1b)
-summary(g1c)
-
-g2 <- lmer(wildlife_photo_prop ~ dist2road + dist2airports + dist2populated_places + dist2urban_areas + dist2PA + (1|owner), data = accessdf)
-g3 <- lmer(wildlife_photo_prop ~ dist2road + dist2airports + dist2ports + dist2urban_areas + dist2PA + (1|owner), data = accessdf)
-g4 <- lmer(wildlife_photo_prop ~ dist2road + dist2airports + dist2ports + dist2populated_places + dist2PA + (1|owner), data = accessdf)
-g5 <- lmer(wildlife_photo_prop ~ dist2road + dist2airports + dist2ports + dist2populated_places + dist2urban_areas + (1|owner), data = accessdf)
-g6 <- lmer(wildlife_photo_prop ~ dist2road + dist2ports + dist2populated_places + dist2urban_areas + dist2PA + (1|owner), data = accessdf)
-
-g7 <- lmer(wildlife_photo_prop ~ dist2road + dist2airports + dist2ports + dist2populated_places + dist2urban_areas + dist2PA + (1|owner), data = accessdf)
-
+g1 <- lmer(logdist2road ~ sqrtwildphotoprop + nearPA + wildlifebird_photos +
+             (1|owner), data = accessdf, REML=TRUE) #owner as random intercept
+#estimated by maximum likelihood for anova
+g1m <- lmer(logdist2road ~ sqrtwildphotoprop + nearPA + wildlifebird_photos +
+             (1|owner), data = accessdf, REML=FALSE) 
+#drop variables to test significance
+g2 <- lmer(logdist2road ~ sqrtwildphotoprop + wildlifebird_photos +
+             (1|owner), data = accessdf, REML=FALSE) #drop PA
+g3 <- lmer(logdist2road ~ sqrtwildphotoprop + nearPA + 
+             (1|owner), data = accessdf, REML=FALSE) #drop whether wildlife photo
+g4 <- lmer(logdist2road ~ nearPA + wildlifebird_photos +
+             (1|owner), data = accessdf, REML=FALSE) #drop whether wildlife photographer
 
 sink("Model_of_wildlifephotoprop_byaccess_lme.txt")
-print("Estimate the models by ML and find the most parsimonious")
-print(anova(g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g12b, g12c, g13, g14))
+print("Estimate the models by ML and check for significance of effects")
+print(anova(g1m, g2, g3, g4))
 print("Full model, estimated by REML")
 print(summary(g1))
 print(car::Anova(g1)) #p values for the fixed effects
-print(" ")
-print("Most parsimonious model, estimated by REML")
-print(summary(g13))
-print(car::Anova(g13)) 
 sink()
 
-x <-as.data.frame.table(summary(g13)$coefficients) %>% spread(key = Var2, value = Freq)
-write.csv(x, "Model_of_wildlifephotoprop_byaccess_lme_bestmod_coefs.csv", row.names=FALSE)
+#x <-as.data.frame.table(summary(g1)$coefficients) %>% spread(key = Var2, value = Freq)
+#write.csv(x, "Model_of_wildlifephotoprop_byaccess_lme_bestmod_coefs.csv", row.names=FALSE)
 x <-as.data.frame.table(summary(g1)$coefficients) %>% spread(key = Var2, value = Freq)
 write.csv(x, "Model_of_wildlifephotoprop_byaccess_lme_fullmod_coefs.csv", row.names=FALSE)
 
@@ -145,36 +127,29 @@ write.csv(x, "Model_of_wildlifephotoprop_byaccess_lme_fullmod_coefs.csv", row.na
 #exp( ({AICc(g6)-AICc(g5)}/2) )
 #e.g. model g6 is 0.0364 times as probable as mod g5 to minimise the information loss. Cant use to compare models run with REML
 
-#plot the model diagnostics, bestmod
 #plot diagnostic plots for lmer For linear (mixed) models, plots for multicollinearity-check (Variance In???ation Factors), 
 #QQ-plots, checks for normal distribution of residuals and homoscedasticity (constant variance of residuals) are shown https://cran.r-project.org/web/packages/sjPlot/sjPlot.pdf.
-p<-plot_model(g13, type = "diag")
-pout <- ggarrange(p[[1]], p[[2]]$owner, p[[3]], p[[4]], ncol=2, nrow=2, labels = c("A", "B", "C", "D"))
-ggsave("Model_of_wildlifephotoprop_byaccess_lme_diag_bestmod.png", pout, width=9, height=7, units="in", dpi=300)
-
 #plot the model diagnostics, fullmod
 p<-plot_model(g1, type = "diag")
 pout <- ggarrange(p[[1]], p[[2]]$owner, p[[3]], p[[4]], ncol=2, nrow=2, labels = c("A", "B", "C", "D"))
 ggsave("Model_of_wildlifephotoprop_byaccess_lme_diag_fullmod.png", pout, width=9, height=7, units="in", dpi=300)
 
 # plot marginal effects 
-p1 <- plot_model(g1, type = "pred", terms = "dist2road")
-p2 <- plot_model(g1, type = "pred", terms = "dist2airports")
-p3 <- plot_model(g1, type = "pred", terms = "dist2ports")
-p4 <- plot_model(g1, type = "pred", terms = "dist2populated_places")
-p5 <- plot_model(g1, type = "pred", terms = "dist2urban_areas")
-p6 <- plot_model(g1, type = "pred", terms = "dist2PA")
-
-pout <- ggarrange(p1, p2, p3, p4, p5, p6, ncol = 3, nrow=2, labels = c("A", "B", "C", "D", "E", "F"))
-  
+p1 <- plot_model(g1, type = "pred", terms = "sqrtwildphotoprop")
+p2 <- plot_model(g1, type = "pred", terms = "wildlifebird_photos")
+p3 <- plot_model(g1, type = "pred", terms = "nearPA")
+pout <- ggarrange(p1, ggarrange(p2, p3, ncol = 2, nrow=1, labels = c("B", "C")), ncol=1, labels="A")
 ggsave("Model_of_wildlifephotoprop_byaccess_lme_marginaleffects_fullmod.png", pout, width=7, height=9, units="in", dpi=300)
 
 #plot residuals assesses how well the predicted and the observed values fit across predictors. The actual (observed) values have a coloured ???ll, while the predicted values have a solid outline without ???lling.
 #https://cran.r-project.org/web/packages/sjPlot/sjPlot.pdf
-#plot_residuals(g1)
+#p <- plot_residuals(g1)
+#ggsave("Model_of_wildlifephotoprop_byaccess_lme_residuals_fullmod.png", p, width=7, height=9, units="in", dpi=300)
 
 # plot random effects 
-#plot_model(g1, type = "re")
+p <- plot_model(g1, type = "re")
+ggsave("Model_of_wildlifephotoprop_byaccess_lme_randomeffects_fullmod.png", p, width=7, height=9, units="in", dpi=300)
+
 
 # #plot the predictions from the two models
 # ppgis_sub_preds <- ppgis_sub %>% 
