@@ -86,23 +86,26 @@ dev.off()
 
 #make some plots of the distance to road versus wildlife_photo_prop
 p <- ggplot(accessdf, aes(sqrtwildphotoprop, logdist2road)) +
-  geom_point() +
+  geom_hex(bins=50) +
   ylab("Log distance to road (m)") +
   xlab("Sqrt photos taken of wildlife per user") +
+  scale_fill_distiller(palette="YlGnBu", direction=1)+
   theme_minimal()
 ggsave("Variable_sqrtwildlife_photo_vs_logdist2road.png", p)
 p <- ggplot(accessdf, aes(sqrtwildphotoprop, dist2road)) +
-  geom_point() +
+  geom_hex(bins=50) +
   ylab("Distance to road (m)") +
   ylim(0,20000) +
   xlab("Sqrt photos taken of wildlife per user") +
+  scale_fill_distiller(palette="YlGnBu", direction=1, trans = 'log10')+
   theme_minimal()
 ggsave("Variable_sqrtwildlife_photo_vs_dist2road.png", p)
 p <- ggplot(accessdf, aes(wildlife_photo_prop, dist2road)) +
-  geom_point() +
+  geom_hex(bins=50) +
   ylim(0,5000) +
   ylab("Distance to road (m)") +
   xlab("Proportion of photos taken of wildlife") +
+  scale_fill_distiller(palette="YlGnBu", direction=1, trans = 'log10')+
   theme_minimal()
 ggsave("Variable_wildlife_photo_prop_vs_dist2road.png", p)
 
@@ -117,6 +120,7 @@ g1 <- lmer(logdist2road ~ sqrtwildphotoprop + nearPA + wildlifebird_photos +
 g1m <- lmer(logdist2road ~ sqrtwildphotoprop + nearPA + wildlifebird_photos +
              (1|owner), data = accessdf, REML=FALSE) 
 #drop variables to test significance
+g0 <- lmer(logdist2road ~ 1 + (1|owner), data = accessdf, REML=FALSE) #null model intercept only
 g2 <- lmer(logdist2road ~ sqrtwildphotoprop + wildlifebird_photos +
              (1|owner), data = accessdf, REML=FALSE) #drop PA
 g3 <- lmer(logdist2road ~ sqrtwildphotoprop + nearPA + 
@@ -126,7 +130,9 @@ g4 <- lmer(logdist2road ~ nearPA + wildlifebird_photos +
 
 sink("Model_of_wildlifephotoprop_byaccess_summer_lme.txt")
 print("Estimate the models by ML and check for significance of effects")
-print(anova(g1m, g2, g3, g4))
+print(anova(g1m, g0))
+print(anova(g1m, g2))
+print(anova(g1m, g3))
 print(anova(g1m, g4))
 print("Full model, estimated by REML")
 print(summary(g1))
