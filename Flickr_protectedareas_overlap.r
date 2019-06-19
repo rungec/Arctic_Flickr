@@ -145,7 +145,8 @@ p1 <- ggplot(paphotos_noeez, aes(x=region, y=perc_photos, fill=esgroup)) +
         #axis.text.x=element_text(angle=90,hjust=1), 
         axis.title.y=element_blank(), axis.text.y=element_blank()) +
   #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
-  scale_fill_manual(values = c("grey80", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
+  #scale_fill_manual(values = c("grey80", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
+  scale_fill_manual(values = c("grey80","#00BFC4"),
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -169,7 +170,8 @@ p2 <- ggplot(paphotos_noeez, aes(x=region, y=perc_users, fill=esgroup)) +
         #axis.text.x=element_text(angle=90,hjust=1), 
         axis.title.y=element_blank(), axis.text.y=element_blank()) +
   #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
-  scale_fill_manual(values = c("grey80", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
+  #scale_fill_manual(values = c("grey80", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
+  scale_fill_manual(values = c("grey80","#00BFC4"),
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -201,7 +203,8 @@ p3 <- ggplot(photosbyregion, aes(x=region, y=nphotos/100000, group=esgroup, fill
         #axis.text.x=element_text(angle=90,hjust=1), 
         axis.title.y=element_blank()) +
   #scale_fill_manual(values = c("grey70", viridisLite::viridis(5)[3], viridisLite::magma(5)[2]),
-  scale_fill_manual(values = c("grey80", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
+  #scale_fill_manual(values = c("grey80", wesanderson::wes_palette(5, name="Zissou1", type="discrete")[c(1,3)]),
+  scale_fill_manual(values = c("grey80","#00BFC4"), 
                     name = element_blank(),
                     guide = guide_legend(
                       direction = "horizontal",
@@ -219,6 +222,7 @@ ggsave(filename="Num_photos_byregion_esgroup.pdf", p3)
 #COMBINE ALL THREE PLOTS
 require(ggpubr)
 
-pout <- ggarrange(p3, p2, p1, labels=c("A", "B", "C"), ncol=3, nrow=1, common.legend = TRUE, legend="bottom", hjust=0, font.label = list(size = 18, face='plain'))
-ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs_vertical.png", width=1280, height=480)
-ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs_vertical.pdf", width=16, height=7)
+pout <- ggarrange(p3, p2, p1, labels=c("(a)", "(b)", "(c)"), ncol=3, nrow=1, common.legend = TRUE, legend="bottom", hjust=0, font.label = list(size = 18, face='plain'))
+ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs_vertical_erl.png", width=1280, height=480)
+ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs_vertical_erl.pdf", width=16, height=7)
+ggexport(pout, filename = "Figure2_paper3b_graphs_ofPAs_vertical_erl.eps", width=16, height=7)
