@@ -186,9 +186,12 @@ write.csv(predsdf, "Model_of_wildlifephotoprop_byaccess_summer_lme_fullmod_predi
 
 ggplot(predsdf, aes(x=wildphotoprop, y=pred_transform, group=wildlifebird_photos)) +
   geom_line(aes(col=wildlifebird_photos)) +
-  geom_ribbon(aes(ymin=conflow_transform, ymax=confhigh_transform, fill=wildlifebird_photos), alpha=0.2) +
+  geom_ribbon(aes(ymin=conflow_transform, ymax=confhigh_transform, fill=wildlifebird_photos), alpha=0.3) +
+  scale_fill_manual(values=c("grey60", "#00BFC4"), aesthetics = c("fill", "color")) +
   ylab("Mean distance travelled (m)") + xlab("Importance of wildlife to user") +
   facet_wrap("nearPA") + 
   theme_minimal(16) +
   theme(legend.title=element_blank(), legend.position = "bottom")
 ggsave("Model_of_wildlifephotoprop_byaccess_summer_lme_fullmodel_transformedpredictions.png", width=7.77, height=4.34, units="in")
+ggsave("Model_of_wildlifephotoprop_byaccess_summer_lme_fullmodel_transformedpredictions.pdf", width=7.77, height=4.34, units="in")
+ 
