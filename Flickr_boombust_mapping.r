@@ -192,5 +192,7 @@ slopemodfun(2012, 2017, curres)
 #Create rasters of seasonal pud
 rastfun3("summer", 10000)
 rastfun3("winter", 10000)
+rastfun3("summer", 100000)
+rastfun3("winter", 100000)
 
 ##END

@@ -24,14 +24,14 @@ library(rgdal)
 boundary60N <- read_sf(paste0(wd2, "/Boundaries/Arctic_circle/60degreesN"), "60degreesN")
 #load flickr points as .shp
 #DATA N of 60N
-load(paste0(wd2, "/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy.Rdata"))
+#load(paste0(wd2, "/Flickr/processed/Flickr_Artic_60N_googlelabels_userinfo_tidy.Rdata"))
 #flickrshp
 #dropped photos pre 2004 and from 2018 or later
 #dropped rows missing urls
 #dropped testusers
 #DATA WITHIN AMAP BOUNDARIES
-#load(paste0(wd2, "/Flickr/processed/Flickr_Artic_60N_googlelabels_escodes_amap.Rdata"))
-#flickrshp <- flickramap
+load("Flickr_Artic_60N_googlelabels_userinfo_tidy_amap.Rdata")
+flickrshp <- flickramap
 #photos from amap region, 
 #regular and super users only, 
 #2004 to 2017
@@ -61,18 +61,18 @@ rastFunPUD <- function(data, curres, currfolder, currphotos, currfile){
 }
 
 #maps of all points across all time
-#rast250m <- rastFunPUD(flickrshp, 250, "static_rasters_pud", "allseasons_pud", "250m")
-rast1km <- rastFunPUD(flickrshp, 1000, "static_rasters_pud", "allseasons_pud", "1km")
-rast5km <- rastFunPUD(flickrshp, 5000, "static_rasters_pud", "allseasons_pud", "5km")
-rast10km <- rastFunPUD(flickrshp, 10000, "static_rasters_pud", "allseasons_pud", "10km")
-rast100km <- rastFunPUD(flickrshp, 100000, "static_rasters_pud", "allseasons_pud", "100km")
+# #rast250m <- rastFunPUD(flickrshp, 250, "static_rasters_pud", "allseasons_pud", "250m")
+# rast1km <- rastFunPUD(flickrshp, 1000, "static_rasters_pud", "allseasons_pud", "1km")
+# rast5km <- rastFunPUD(flickrshp, 5000, "static_rasters_pud", "allseasons_pud", "5km")
+# rast10km <- rastFunPUD(flickrshp, 10000, "static_rasters_pud", "allseasons_pud", "10km")
+# rast100km <- rastFunPUD(flickrshp, 100000, "static_rasters_pud", "allseasons_pud", "100km")
 
 #map photos from winter (Nov-Apr)
 flickrshp_winter <- flickrshp[flickrshp$month %in% c("11", "12", "01", "02", "03", "04"), ]
-rast10kmwinter <- rastFunPUD(flickrshp_winter, 10000, "static_rasters_pud", "winterphotos_pud", "10km")
+rast10kmwinter <- rastFunPUD(flickrshp_winter, 10000, "static_rasters_pud_amap", "winterphotos_pud", "10km")
 #map photos from summer (May-Oct)
 flickrshp_summer <- flickrshp[flickrshp$month %in% c("05", "06", "07", "08", "09", "10"),]
-rast10kmsummer <- rastFunPUD(flickrshp_summer, 10000, "static_rasters_pud", "summerphotos_pud", "10km")
+rast10kmsummer <- rastFunPUD(flickrshp_summer, 10000, "static_rasters_pud_amap", "summerphotos_pud", "10km")
 
 
 #annual maps

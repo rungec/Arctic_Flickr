@@ -101,6 +101,8 @@ rstack <- lapply(rlist, function(x) {
 
 histdf <- do.call(rbind, rstack)
 histdf$curres <- factor(histdf$curres, levels=c("500", "1000", "5000", "10000", "20000", "50000", "1e+05"))
+histdf$labels <- rep(c("0", "1", "2", "3", "4", "5", "6-10", "11-20", "21-30", "31-40", "41-50", "51-100", "101-200", "201-300", "301-500", "501-1000", ">1000"), times=length(rlist))
+write.csv(histdf, "Histogram_data_ArcticFlickr_byresolution.csv")
 
 #######################
 #Plot
@@ -111,7 +113,7 @@ p1 <- ggplot(histdf, aes(x=breaknum, y=rhist.counts, colour=curres)) +
   ylab("Count of cells") +
   theme_minimal(18) +
   scale_color_discrete(name="Resolution (m)")+
-  scale_x_continuous(breaks=c(1:17), labels=c("1", "2", "3", "4", "5", "6-10", "11-20", "21-30", "31-40", "41-50", "51-100", "101-200", "201-300", "301-500", "501-1000", "1000-1500", ">1500")) +
+  scale_x_continuous(breaks=c(1:17), labels=c("0", "1", "2", "3", "4", "5", "6-10", "11-20", "21-30", "31-40", "41-50", "51-100", "101-200", "201-300", "301-500", "501-1000", ">1000")) +
   scale_y_continuous(breaks=c(0, 1,10,100,1000,10000,100000, 1000000, 7500000))+
   theme(axis.text.x  = element_text(angle=45, hjust=1, vjust=0.5), 
         panel.grid.minor=element_blank())
@@ -124,7 +126,7 @@ p2 <- ggplot(histdf[histdf$breaknum!=1,], aes(x=breaknum, y=rhist.counts, colour
   ylab("Count of cells") +
   theme_minimal(18) +
   scale_color_discrete(name="Resolution (m)")+
-  scale_x_continuous(breaks=c(1:17), labels=c("1", "2", "3", "4", "5", "6-10", "11-20", "21-30", "31-40", "41-50", "51-100", "101-200", "201-300", "301-500", "501-1000", "1000-1500", ">1500")) +
+  scale_x_continuous(breaks=c(1:17), labels=c("0", "1", "2", "3", "4", "5", "6-10", "11-20", "21-30", "31-40", "41-50", "51-100", "101-200", "201-300", "301-500", "501-1000", ">1000")) +
   scale_y_continuous(breaks=c(0, 1,5, 10,50, 100, 400))+
   theme(axis.text.x  = element_text(angle=45, hjust=1, vjust=0.5), 
         panel.grid.minor=element_blank())
