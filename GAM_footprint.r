@@ -152,29 +152,36 @@ plotData2 <- gridYear_nphoto %>%
   summarise(footprint = mean(nphotos>0)) %>% #this calculates the proportion of cells with photos
   mutate(type="Uncorrected")
 
-# this samples n records from each year in flickramap
-# n was the number of records in the first year (2004)
-# we want an n equal to the smallest year*season combo, so min(table(flickramap$yearseason))
-equaln_sample_flickr_s <- flickramap %>% 
-  filter(season=="summer") %>%
-  group_by(yearseason) %>% 
-  sample_n(as.numeric(table(flickramap$yearseason)[1])) %>%
-  ungroup()
-equaln_sample_flickr_w <- flickramap %>% 
-  filter(season=="winter") %>%
-  group_by(yearseason) %>% 
-  sample_n(as.numeric(table(flickramap$yearseason)[2])) %>%
-  ungroup()
+ 
+  # this samples n records from each year in flickramap
+  # n was the number of records in the first year (2004)
+  # we want an n equal to the smallest year*season combo, so min(table(flickramap$yearseason))
+doup <- c()
+for (i in 1:10){ #10 replicates for uncertainty analysis
+    equaln_sample_flickr_s <- flickramap %>% 
+    filter(season=="summer") %>%
+    group_by(yearseason) %>% 
+    sample_n(as.numeric(table(flickramap$yearseason)[1])) %>%
+    ungroup()
+  equaln_sample_flickr_w <- flickramap %>% 
+    filter(season=="winter") %>%
+    group_by(yearseason) %>% 
+    sample_n(as.numeric(table(flickramap$yearseason)[2])) %>%
+    ungroup()
   
-# this recalculates nphotos by yearseason by grid cell for equaln_sample_flickr
-plotData_equaln_s <- photo_grid(equaln_sample_flickr_s, equaln_sample_flickr_s$yearseason, grid_footprint) %>%
-  group_by(yearseason) %>% 
-  summarise(footprint=mean(nphotos>0) )%>% 
-  mutate(type="Equal sample size")
-plotData_equaln_w <- photo_grid(equaln_sample_flickr_w, equaln_sample_flickr_w$yearseason, grid_footprint)  %>%
-  group_by(yearseason) %>% 
-  summarise(footprint=mean(nphotos>0) )%>% 
-  mutate(type="Equal sample size")
+  # this recalculates nphotos by yearseason by grid cell for equaln_sample_flickr
+  plotData_equaln_s <- photo_grid(equaln_sample_flickr_s, equaln_sample_flickr_s$yearseason, grid_footprint) %>%
+    group_by(yearseason) %>% 
+    summarise(footprint=mean(nphotos>0) )%>% 
+    mutate(type="Equal sample size")
+  plotData_equaln_w <- photo_grid(equaln_sample_flickr_w, equaln_sample_flickr_w$yearseason, grid_footprint)  %>%
+    group_by(yearseason) %>% 
+    summarise(footprint=mean(nphotos>0) )%>% 
+    mutate(type="Equal sample size")
+  
+  doup <- rbind(doup, data.frame(rep=i, rbind(plotData_equaln_s, plotData_equaln_w)))
+}
+write.csv(doup, "Flickr_footprint_uncertainty.csv", row.names=FALSE)
 
 #next lets correct for the global increase in flickr use
 correct <- byYear %>% 
