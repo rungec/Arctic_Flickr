@@ -181,7 +181,36 @@ for (i in 1:10){ #10 replicates for uncertainty analysis
   
   doup <- rbind(doup, data.frame(rep=i, rbind(plotData_equaln_s, plotData_equaln_w)))
 }
-write.csv(doup, "Flickr_footprint_uncertainty.csv", row.names=FALSE)
+
+#calculate the mean and standard dev around the equaln footprint estimate
+uncert <- doup %>% group_by(yearseason, type) %>%
+          summarise(footprint_mean = mean(footprint), footprint_sd = sd(footprint),
+                    footprint_se = sd(footprint)/sqrt(10))
+
+doup2 <- spread(doup, key='rep', value='footprint')
+equaln <- merge(uncert, doup2, by=c('yearseason', 'type'))
+write.csv(equaln, "Flickr_footprint_uncertainty.csv", row.names=FALSE)
+
+#plot the trend with error bars
+plotDataEn <- separate(equaln, yearseason, c("year", "season"), sep="_", remove=FALSE) %>%     mutate(year=as.numeric(year))
+plotDataEn$season <- factor(plotDataEn$season, labels=c("Summer", "Winter"))
+plotDataEn$footprint_percent <- plotDataEn$footprint_mean*100
+plotDataEn$footprint_se_perc <- plotDataEn$footprint_se*100
+write.csv(plotDataEn, "Flickr_footprint_equaln_withuncert_for_plots.csv", row.names=FALSE)
+
+p4 <- ggplot(plotDataEn) +
+  geom_line(aes(x=year, y=footprint_percent, col=season),position = "identity") +
+  geom_errorbar(aes(x=year, ymin=footprint_percent-footprint_se_perc, ymax=footprint_percent+footprint_se_perc, col=season), width=.1) +
+  xlab("Year") + ylab("Footprint (% of Arctic)") +
+  scale_x_continuous(expand=c(0,0), breaks=c(2007, 2010, 2013, 2016)) +
+  #scale_y_continuous(expand=c(0,0), limits=c(0,0.39)) +
+  theme_bw(18) +
+  theme(strip.background=element_rect(fill="white", color=NA), strip.text=element_text(size=18), 
+        axis.text=element_text(size=16), 
+        axis.title.x=element_text(vjust=-0.35), 
+        axis.title.y=element_text(vjust=2.0), 
+        legend.position="bottom", legend.text=element_text(size=18))
+ggsave(filename="Flickr_footprint_equaln_withuncertainty.png", p4, width=12, height = 7)
 
 #next lets correct for the global increase in flickr use
 correct <- byYear %>% 
@@ -207,7 +236,7 @@ plotData_trafficn <- photo_grid(trafficn_sample_flickr, trafficn_sample_flickr$y
   summarise(footprint=mean(nphotos>0)) %>% 
   mutate(type="Global bias-corrected")
 
-plotDataAll <- rbind(plotData2, plotData_equaln_s, plotData_equaln_w, plotData_trafficn)
+plotDataAll <- rbind(plotData2, equaln[,1:3], plotData_trafficn)
 
 plotDataAll$type <- ordered(plotDataAll$type,levels = unique(plotDataAll$type)[c(1,3,2)])
 plotDataAll <- separate(plotDataAll, yearseason, c("year", "season"), sep="_", remove=FALSE) %>%     mutate(year=as.numeric(year))
