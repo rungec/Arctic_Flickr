@@ -20,6 +20,9 @@ library(tidyverse)
 #library(showtext) #for other fonts 
 #library(Cairo) # for embedding fonts in PDF; may not need to be loaded here
 library(wesanderson) #colors
+#library(grid) #for viewport
+require(ggpubr) #for ggarrange
+
 
 #font_add_google("Hind", "Hind") #google fonts
 #font_add_google("Roboto", "Roboto") 
@@ -215,34 +218,45 @@ usercounts_overall$usertype <- "regular"
 usercounts_overall$usertype[usercounts_overall$num_photos_contributed>=471] <- "superuser"
 #usercounts_overall$usertype[usercounts_overall$num_photos_contributed>=10000] <- "more than 10000"
 usercounts_overall$usertype[usercounts_overall$num_photos_contributed<=2] <- "testuser"
+usercounts_overall$cumulative_nphotos <- cumsum(usercounts_overall$num_photos_contributed/sum(usercounts_overall$num_photos_contributed))
+usercounts_overall$cumulative_nusers <- cumsum(usercounts_overall$num_users/sum(usercounts_overall$num_users))
+
 
 #make a nicer plot of the histograms
 # scientific_10 <- function(x) {
   # parse(text=gsub("e", " %*% 10^", scales::scientific_format()(x)))
 # }
-vp <- viewport(width=0.35, height=0.35, x=0.95, y=0.95, just=c("right", "top"))
-pmain <- ggplot(usercounts_overall, aes(x=num_photos_contributed, fill=usertype))+
-		geom_histogram(bins=50) +
-		scale_fill_manual(name="User type", values=c(wes_palette(3, name="GrandBudapest", type="discrete"))) +
-		scale_x_log10(breaks=c(1,10,100,1000,10000), labels=c(1,10,100,1000,10000)) +
-		xlab("Number of photos contributed")+ylab("Number of users")+
-		theme_minimal(base_size=16) +
-		theme(legend.position="bottom", plot.margin=unit(c(5.5,100,5.5,5.5), "pt"), panel.grid.minor = element_blank()) 
-		#theme(legend.position="right", legend.justification = "bottom") 
-		
-psub <- ggplot(usercounts_overall, aes(x=num_photos_contributed)) + 
-		geom_histogram(bins=50) +
-		xlab("# photos")+ylab("# users") +
-		#scale_x_continuous(label=scientific_10) +
-		scale_x_continuous(limits=c(0, 20000)) +
-		theme_bw(base_size=14) +
-		theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "grey70"))
+#vp <- viewport(width=0.35, height=0.35, x=0.95, y=0.95, just=c("right", "top"))
+ymax=100
+pmain <- ggplot(data=usercounts_overall,aes(x=num_photos_contributed, fill=usertype)) + 
+  #geom_histogram(bins=50)+
+  #scale_fill_manual(name="User type", values=c(wes_palette(3, name="GrandBudapest1", type="discrete"))) +
+  scale_x_log10(name='Number of photos contributed per user', breaks=c(1,10,100,1000,10000))+
+  geom_area(aes(x=num_photos_contributed,y=cumulative_nusers*ymax))+
+  geom_line(aes(x=num_photos_contributed,y=cumulative_nphotos*ymax), col="black", lwd=1)+
+  #scale_fill_manual(name="User type") +
+  scale_fill_manual(name="User type", values=c(wes_palette(3, name="GrandBudapest1", type="discrete"))) +
+  scale_y_continuous(name = 'Cumulative percentage of users [%]', sec.axis = sec_axis(~., name = "Cumulative percentage of photos [%]")) +
+  theme_minimal(base_size=18) +
+  theme(legend.position="bottom", plot.margin=unit(c(5.5,20,5.5,5.5), "pt"), panel.grid.minor = element_blank()) 
 
-png("figures/Histogram_of_photos_per_user.png", width=640, height=480, units="px", type = c("windows"))
-	print(pmain)
-	print(psub, vp=vp)
-dev.off()	
+psub <- ggplot(usercounts_overall, aes(x=num_photos_contributed, fill=usertype)) + 
+  geom_histogram(bins=50) +
+  xlab("Number of photos contributed per user")+ylab("Number of users") +
+  #scale_x_continuous(label=scientific_10) +
+  scale_fill_manual(name="User type", values=c(wes_palette(3, name="GrandBudapest1", type="discrete"))) +
+  scale_x_continuous(limits=c(0, 12000)) +
+    theme_minimal(base_size=18) +
+    theme(legend.position="bottom", plot.margin=unit(c(5.5,20,5.5,5.5), "pt"), panel.grid.minor = element_blank()) 
   
+pout <- ggarrange(pmain, psub, nrow=1, labels=c("A", "B"), font.label = list(size = 18, face='plain'), common.legend = TRUE, legend="bottom")
+ggexport(pout, filename = "figures/Histogram_of_photos_per_user.png", width=1280, height=480)
+
+# png("figures/Histogram_of_photos_per_user.png", width=640, height=480, units="px", type = c("windows"))
+# print(pmain)
+# print(psub, vp=vp)
+# dev.off()	
+#   
 ############################
 #Timeseries by region ----
 ############################
